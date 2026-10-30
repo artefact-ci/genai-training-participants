@@ -1,0 +1,21 @@
+{
+  "name": "Agent de détection de fraude",
+  "description": "Analyse un dossier de suspicion de fraude transmis par l'agent support et renvoie un score de risque et les éléments à vérifier. Lecture seule : ne bloque aucun compte et ne rembourse rien.",
+  "url": "https://agents.lagune-banque.example/fraude/a2a",
+  "version": "1.0.0",
+  "provider": {"organization": "Lagune Banque (données fictives)"},
+  "capabilities": {"streaming": true, "pushNotifications": true},
+  "securitySchemes": {"token": {"type": "http", "scheme": "bearer"}},
+  "security": [{"token": []}],
+  "defaultInputModes": ["application/json"],
+  "defaultOutputModes": ["application/json", "text/plain"],
+  "skills": [
+    {
+      "id": "analyser_dossier_fraude",
+      "name": "Analyser un dossier de fraude",
+      "description": "À partir d'un dossier P5 (client, prêt contesté, transactions), renvoie un score de risque et la liste des vérifications recommandées au conseiller.",
+      "tags": ["fraude", "prêt", "dossier"],
+      "examples": ["Un prêt a été contracté à mon nom cette nuit, je n'ai rien demandé."]
+    }
+  ]
+}

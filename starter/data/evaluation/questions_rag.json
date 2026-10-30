@@ -1,0 +1,410 @@
+{
+  "description": "Questions de référence du module 2. Chaque question porte les éléments qui doivent figurer ensemble dans un même passage.",
+  "genere_le": "2026-10-27",
+  "modele_de_generation": "gemini/gemini-3.5-flash-lite",
+  "decoupage_de_reference": "récursif, 500 caractères, recouvrement 75",
+  "representatif": [
+    {
+      "question": "Quel est le montant minimum d'un Prêt Express ?",
+      "elements": [
+        "5 000 fcfa",
+        "50 000 fcfa"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Quels sont les frais de retard du Prêt Express ?",
+      "elements": [
+        "2 000 fcfa",
+        "forfait"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Quand les intérêts de l'Épargne Plus sont-ils versés ?",
+      "elements": [
+        "trimestriellement"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Le service client est-il joignable le dimanche ?",
+      "elements": [
+        "lundi au samedi"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Combien de temps faut-il attendre pour emprunter à nouveau ?",
+      "elements": [
+        "48 heures"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Quelle est la durée d'un Prêt Express ?",
+      "elements": [
+        "30 jours"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Quelle est la durée d'un Prêt Express+ ?",
+      "elements": [
+        "30, 60 ou 90 jours"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Quel est le taux de rémunération de l'Épargne Plus ?",
+      "elements": [
+        "3,5 %"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Que faire si mon KYC est incomplet ?",
+      "elements": [
+        "kyc"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Quel est le plafond initial du Prêt Express ?",
+      "elements": [
+        "15 000"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Combien coûte un Prêt Express+ sur 60 jours ?",
+      "elements": [
+        "6 %"
+      ],
+      "famille": "standard",
+      "historique": ""
+    },
+    {
+      "question": "Peut-on avoir deux Prêts Express en même temps ?",
+      "elements": [
+        "un seul prêt express"
+      ],
+      "famille": "standard",
+      "historique": ""
+    }
+  ],
+  "difficile": [
+    {
+      "question": "fré de retar prèt expres ??",
+      "elements": [
+        "2 000 fcfa"
+      ],
+      "famille": "bruitée",
+      "historique": ""
+    },
+    {
+      "question": "Bonjour, j'ai pris un petit prêt la semaine dernière sur mon téléphone et je voudrais savoir si je pourrai en reprendre un autre rapidement après l'avoir remboursé, merci beaucoup",
+      "elements": [
+        "48 heures"
+      ],
+      "famille": "bruitée",
+      "historique": ""
+    },
+    {
+      "question": "c koi le plafon du pret express stp",
+      "elements": [
+        "15 000"
+      ],
+      "famille": "bruitée",
+      "historique": ""
+    },
+    {
+      "question": "jé pa pu payé a tan sa me coute koi",
+      "elements": [
+        "frais de retard"
+      ],
+      "famille": "bruitée",
+      "historique": ""
+    },
+    {
+      "question": "What are the late payment fees for the Express loan?",
+      "elements": [
+        "2 000 fcfa"
+      ],
+      "famille": "anglais",
+      "historique": ""
+    },
+    {
+      "question": "How often is interest paid on the savings account?",
+      "elements": [
+        "trimestriellement"
+      ],
+      "famille": "anglais",
+      "historique": ""
+    },
+    {
+      "question": "How long must I wait before taking a new loan?",
+      "elements": [
+        "48 heures"
+      ],
+      "famille": "anglais",
+      "historique": ""
+    },
+    {
+      "question": "What is the maximum amount of an Express loan?",
+      "elements": [
+        "50 000 fcfa"
+      ],
+      "famille": "anglais",
+      "historique": ""
+    },
+    {
+      "question": "Quel prêt va de 50 001 à 300 000 FCFA ?",
+      "elements": [
+        "50 001",
+        "300 000"
+      ],
+      "famille": "nombre exact",
+      "historique": ""
+    },
+    {
+      "question": "Qui répond au 0800 00 12 34 et quand ?",
+      "elements": [
+        "0800 00 12 34",
+        "lundi au samedi"
+      ],
+      "famille": "nombre exact",
+      "historique": ""
+    },
+    {
+      "question": "À quoi correspondent les 48 heures ?",
+      "elements": [
+        "48 heures",
+        "remboursement"
+      ],
+      "famille": "nombre exact",
+      "historique": ""
+    },
+    {
+      "question": "Que représente le taux de 3,5 % ?",
+      "elements": [
+        "3,5 %"
+      ],
+      "famille": "nombre exact",
+      "historique": ""
+    },
+    {
+      "question": "plafond",
+      "elements": [
+        "15 000"
+      ],
+      "famille": "courte",
+      "historique": ""
+    },
+    {
+      "question": "intérêts",
+      "elements": [
+        "trimestriellement"
+      ],
+      "famille": "courte",
+      "historique": ""
+    },
+    {
+      "question": "KYC",
+      "elements": [
+        "kyc"
+      ],
+      "famille": "courte",
+      "historique": ""
+    },
+    {
+      "question": "durée",
+      "elements": [
+        "30 jours"
+      ],
+      "famille": "courte",
+      "historique": ""
+    },
+    {
+      "question": "Et pour l'Express+ ?",
+      "elements": [
+        "5 000 fcfa",
+        "prêt express+"
+      ],
+      "famille": "suite de conversation",
+      "historique": "Client : Quels sont les frais de retard du Prêt Express ?\nAssistant : 2 000 FCFA, en forfait."
+    },
+    {
+      "question": "Et sur quelle durée ?",
+      "elements": [
+        "30, 60 ou 90 jours"
+      ],
+      "famille": "suite de conversation",
+      "historique": "Client : Je voudrais en savoir plus sur le Prêt Express+.\nAssistant : Il va de 50 001 à 300 000 FCFA."
+    },
+    {
+      "question": "Et le montant minimum ?",
+      "elements": [
+        "5 000 fcfa"
+      ],
+      "famille": "suite de conversation",
+      "historique": "Client : Je voudrais un Prêt Express.\nAssistant : Très bien, que souhaitez-vous savoir ?"
+    },
+    {
+      "question": "Et si je ne paie pas à temps ?",
+      "elements": [
+        "5 000 fcfa",
+        "échéance impayée"
+      ],
+      "famille": "suite de conversation",
+      "historique": "Client : Combien coûte un Prêt Express+ sur 60 jours ?\nAssistant : Les frais de service sont de 6 % du montant."
+    },
+    {
+      "question": "Dans quelles situations précises mon banquier va-t-il rejeter ma demande de correction ?",
+      "elements": [
+        "la transaction a échoué",
+        "déjà rattachée",
+        "l'échéance n'est pas impayée"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Quel est le montant minimal exigé pour alimenter ce livret de placement et quelle est la limite maximale autorisée sur le compte ?",
+      "elements": [
+        "dépôt minimum : 1 000 fcfa.",
+        "solde maximum : 2 000 000 fcfa."
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Combien d'argent puis-je emprunter rapidement, pour combien de temps, et est-il permis d'en demander plusieurs en même temps ?",
+      "elements": [
+        "5 000 fcfa",
+        "50 000 fcfa",
+        "30 jours"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Est-ce que le robot conversationnel peut valider un crédit ou me dire quoi faire de mon argent ?",
+      "elements": [
+        "17.2",
+        "17.3"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Que se passe-t-il si je rate la date limite pour rendre l'argent emprunté avec l'appli ?",
+      "elements": [
+        "lendemain de l'échéance (j+1)",
+        "solde disponible"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Qu'advient-il de mon échéance quand mon versement est validé et pris en compte ?",
+      "elements": [
+        "statut payée",
+        "aucune autre démarche n'est nécessaire"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Qu'est-ce qui se passe concrètement quand on a payé son crédit à temps mais que le système bugue et laisse l'échéance en retard, avant qu'un conseiller valide la correction ?",
+      "elements": [
+        "prêt express",
+        "frais de retard"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Qu'est-ce que le robot conversationnel du support a le droit de faire ou de ne pas faire ?",
+      "elements": [
+        "assistant virtuel du service client",
+        "il ne prend aucune décision de crédit."
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Combien de temps dois-je attendre après avoir épongé mon retard de mensualité avant de pouvoir solliciter un nouveau crédit auprès de l'établissement ?",
+      "elements": [
+        "remboursement intégral",
+        "7 jours d'observation"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Combien de temps faut-il patienter pour qu'une contestation soit examinée par vos services ?",
+      "elements": [
+        "72 heures"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Qu'est-ce qui est concrètement fait sur mon dossier quand un paiement en retard est accepté et corrigé ?",
+      "elements": [
+        "le rattachement de la transaction à l'échéance",
+        "l'annulation des frais de retard",
+        "la levée de la suspension de l'accès à un nouveau prêt"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "À quel moment aurai-je la possibilité de solliciter un nouveau crédit de cette gamme ?",
+      "elements": [
+        "30 jours",
+        "une seule échéance"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Combien de temps dure le crédit de cent cinquante mille francs avec des mensualités de cinquante-quatre mille cinq cents francs, et quel est le montant total des commissions ?",
+      "elements": [
+        "90 jours",
+        "13 500 fcfa",
+        "3 échéances mensuelles égales de 54 500 fcfa"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Pourquoi mon compte indique des retards de paiement et pourquoi je n'ai plus le droit de souscrire un nouvel emprunt, alors que j'ai bien versé la somme due ?",
+      "elements": [
+        "frais de retard",
+        "suspension de l'accès à un nouveau prêt"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    },
+    {
+      "question": "Combien de temps dois-je patienter avant de solliciter un nouveau crédit après avoir soldé le précédent ?",
+      "elements": [
+        "48 heures"
+      ],
+      "famille": "générée (échec du départ)",
+      "historique": ""
+    }
+  ]
+}

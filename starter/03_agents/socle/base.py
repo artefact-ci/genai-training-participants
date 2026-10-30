@@ -1,0 +1,82 @@
+"""Socle du module 3 : données, contexte d'exécution, modèle et affichage, partagés par les TP et les démos."""
+import json
+import os
+import shutil
+import sqlite3
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+ROOT = next(p for p in Path(__file__).resolve().parents if (p / "data" / "banque.db").exists())
+DATA = ROOT / "data"
+sys.path.insert(0, str(ROOT / "code_partage"))
+
+AUJOURDHUI = "2026-11-16"
+HIER = "2026-11-15"
+BASE = str(Path(tempfile.gettempdir()) / f"lagune_banque_tp_{os.getpid()}.db")
+KOUASSI = "J'ai remboursé mon prêt hier via Lagune Money, mais mon dossier indique toujours un impayé."
+
+
+@dataclass
+class Context:
+    client_id: str
+    validateur: Optional[str] = None
+
+
+def reset_db():
+    """Remet la copie de travail dans l'état d'origine."""
+    shutil.copy(DATA / "banque.db", BASE)
+
+
+def sql(requete, params=()):
+    with sqlite3.connect(BASE) as con:
+        return pd.read_sql_query(requete, con, params=params)
+
+
+def connect():
+    con = sqlite3.connect(BASE)
+    con.row_factory = sqlite3.Row
+    return con
+
+
+def new_model():
+    """Le modèle de .env, via LiteLLM."""
+    from langchain_litellm import ChatLiteLLM
+    return ChatLiteLLM(model=os.getenv("MODELE"), api_key=os.getenv("LLM_API_KEY"), temperature=0)
+
+
+def print_trace(resultat):
+    """Affiche les appels de tools et la réponse du dernier tour."""
+    msgs = resultat["messages"]
+    debut = max(i for i, m in enumerate(msgs) if isinstance(m, HumanMessage))
+    for m in msgs[debut:]:
+        if isinstance(m, HumanMessage):
+            print(f"CLIENT    : {m.content}")
+        elif isinstance(m, AIMessage) and m.tool_calls:
+            for tc in m.tool_calls:
+                print(f"  → {tc['name']}({json.dumps(tc['args'], ensure_ascii=False)[:150]})")
+        elif isinstance(m, ToolMessage):
+            print(f"  ← {m.name} : {str(m.content)[:160]}")
+        elif isinstance(m, AIMessage):
+            print(f"ASSISTANT : {m.content}")
+    if resultat.get("__interrupt__"):
+        print("⏸  EN ATTENTE DE VALIDATION HUMAINE")
+
+
+def tools_called(resultat):
+    """Tools appelés pendant le dernier tour."""
+    msgs = resultat["messages"]
+    debut = max(i for i, m in enumerate(msgs) if isinstance(m, HumanMessage))
+    return [tc["name"] for m in msgs[debut:] if isinstance(m, AIMessage) for tc in m.tool_calls]
+
+
+def model_calls(resultat):
+    """Nombre d'appels au modèle pendant le dernier tour."""
+    msgs = resultat["messages"]
+    debut = max(i for i, m in enumerate(msgs) if isinstance(m, HumanMessage))
+    return sum(isinstance(m, AIMessage) for m in msgs[debut:])

@@ -1,0 +1,6 @@
+# Formats binaires : jamais de conversion de fins de ligne (un PDF scanné ne contient que de l'ASCII, Git le prendrait pour du texte)
+*.pdf binary
+*.docx binary
+*.db binary
+*.png binary
+*.jpg binary

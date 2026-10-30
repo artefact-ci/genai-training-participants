@@ -1,0 +1,92 @@
+[
+  {
+    "id": "DOC-01",
+    "fichier": "conditions_generales_prets.pdf",
+    "titre": "Conditions générales des prêts",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-02",
+    "fichier": "fiche_pret_express.html",
+    "titre": "Fiche produit – Prêt Express",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-03",
+    "fichier": "fiche_pret_express_plus.html",
+    "titre": "Fiche produit – Prêt Express+",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-04",
+    "fichier": "fiche_epargne_plus.html",
+    "titre": "Fiche produit – Épargne Plus",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-05",
+    "fichier": "faq_client.html",
+    "titre": "Foire aux questions – Banque mobile",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-06",
+    "fichier": "grille_tarifaire.pdf",
+    "titre": "Grille tarifaire des prêts et de l'épargne",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-07",
+    "fichier": "procedure_regularisation_v1.docx",
+    "titre": "Procédure de régularisation – version 1.0",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": "2026-06-30",
+    "date_maj": "2026-06-30"
+  },
+  {
+    "id": "DOC-08",
+    "fichier": "procedure_regularisation_v2.docx",
+    "titre": "Procédure de régularisation – version 2.0",
+    "version": "2.0",
+    "date_effet": "2026-07-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-09",
+    "fichier": "procedure_suspicion_fraude.docx",
+    "titre": "Procédure de suspicion de fraude",
+    "version": "1.0",
+    "date_effet": "2025-01-01",
+    "date_fin": null,
+    "date_maj": "2026-07-01"
+  },
+  {
+    "id": "DOC-10",
+    "fichier": "note_service_incident.pdf",
+    "titre": "Note de service – Incident de rattachement des remboursements",
+    "version": "1.0",
+    "date_effet": "2026-11-15",
+    "date_fin": null,
+    "date_maj": "2026-11-15"
+  }
+]

@@ -1,0 +1,19 @@
+NOTE DE SERVICE INTERNE
+
+Date : 15/11/2026
+Émetteur : Direction du Support Client (entité fictive)
+Destinataires : conseillers et équipe support
+
+Objet : incident de rattachement des remboursements
+
+Incident de rattachement des remboursements le 15/11/2026 de 14:00 à 16:30.
+Gravité : majeure.
+
+Pendant cette période, les remboursements réussis n'ont pas été rattachés automatiquement aux échéances.
+
+Consigne : les clients concernés bénéficient d'une régularisation sans frais de retard.
+Chaque régularisation est soumise à la validation d'un conseiller.
+
+Conformément à la procédure de régularisation en vigueur, la décision est rendue par un conseiller.
+
+Signature : le Responsable du Support
