@@ -71,7 +71,7 @@ def pseudonym(valeur: str, prefixe: str = "") -> str:
 def langfuse_callbacks(session_id: str = "", utilisateur: str = "", tags: Optional[list[str]] = None, nom: str = "") -> tuple[list, dict]:
     """(callbacks, metadata) à ajouter à la config d'un appel LangChain ou LangGraph : `config={"callbacks": cb, "metadata": meta}`.
     Les deux sont vides si Langfuse n'est pas configuré. Les traces d'une même conversation partagent `session_id`.
-    `nom` : le nom de la trace dans Langfuse (voir « Nommer ses traces » dans INSTALLATION.md). Sans nom, Langfuse affiche celui
+    `nom` : le nom de la trace dans Langfuse (convention `m<module>-<usage>`, en minuscules). Sans nom, Langfuse affiche celui
     de l'exécution racine : « LangGraph » pour un graphe, « ChatLiteLLM » pour un appel direct au modèle."""
     if langfuse_client() is None:
         return [], {}

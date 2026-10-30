@@ -1,8 +1,5 @@
 # Module 2 : RAG et données métier
 
-Ce module construit un assistant qui répond à partir de la documentation de Lagune Banque (données fictives).
-Chaque notebook ajoute une capacité au même assistant, et mesure ce qu'elle apporte. Les démos sont menées par le formateur, les TP sont à compléter (`# TODO`). À la fin, tout s'assemble dans une interface Gradio.
-
 | Ordre | Notebook | Capacité ajoutée | Mesure |
 |---|---|---|---|
 | 1 | `tp1_chunking/` | Implémenter un splitter, mesurer des distances d'embeddings et comparer six index | présence d'une réponse complète dans un chunk |
@@ -12,7 +9,7 @@ Chaque notebook ajoute une capacité au même assistant, et mesure ce qu'elle ap
 
 ## Le code partagé
 
-Dans `code_partage/` (les modules 3, 4 et 5 l'utilisent aussi pour la recherche documentaire) :
+`code_partage/`, aussi utilisé par les modules 3 à 5 pour la recherche documentaire :
 
 | Fichier | Contenu |
 |---|---|
@@ -24,20 +21,11 @@ Dans `code_partage/` (les modules 3, 4 et 5 l'utilisent aussi pour la recherche 
 
 Les questions de mesure sont dans `data/evaluation/questions_rag.json` : 12 cas courants et 35 cas difficiles (fautes, anglais, nombres exacts, suites de conversation).
 
-Les données sont dans `data/` : `corpus/` (dix documents décrits par `manifest.json`) et `banque.db`.
+## Prérequis
 
-## Lancer
-
-```bash
-uv sync
-uv run jupyter lab
-```
-
-Renseignez dans `.env` : `LLM_API_KEY`, `MODELE` et `MODELE_EMBEDDING`. Le reranking (TP2 et suivants) demande aussi `MODELE_RERANK`, `RERANK_API_KEY` et, selon le fournisseur, `RERANK_API_BASE` : voir `.env.example`.
-
-Pour utiliser Weaviate, lancez `docker compose up -d` à la racine du dépôt. Sinon, la base en mémoire prend le relais.
-
-Le reranker est un service à débit limité, partagé par la salle : le TP2 se limite à 15 questions, le TP4 à une vingtaine.
+- `.env` : `LLM_API_KEY`, `MODELE`, `MODELE_EMBEDDING`, et pour le reranking (TP2 et suivants) `MODELE_RERANK`, `RERANK_API_KEY`, `RERANK_API_BASE` (voir `.env.example`).
+- Weaviate : `docker compose up -d` à la racine du dépôt. Sans Docker, une base en mémoire prend le relais.
+- Le reranker est partagé par la salle et limité en débit : 15 questions au TP2, une vingtaine au TP4.
 
 ## Particularités du corpus
 
@@ -48,5 +36,4 @@ Le reranker est un service à débit limité, partagé par la salle : le TP2 se 
 
 ## Origine
 
-Ce module reprend et adapte le TP de chunking et le TP d'observabilité Langfuse de souleymanecoulibaly-stack
-(branche `tp-rag-lagune-bank`, commit `8ba70e2`). Il utilise le corpus de Lagune Banque et LiteLLM.
+TP de chunking et TP d'observabilité Langfuse adaptés de souleymanecoulibaly-stack (branche `tp-rag-lagune-bank`, commit `8ba70e2`).

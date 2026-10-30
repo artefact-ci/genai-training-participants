@@ -1,8 +1,6 @@
 # Module 3 : Agents avec LangChain et LangGraph
 
-Le module construit un agent capable d'enquêter sur un remboursement Lagune Money qui n'apparaît pas dans le dossier du client (données fictives). Les notebooks ajoutent progressivement les outils, la mémoire, les contrôles de sécurité, l'orchestration et l'observabilité.
-
-Les démos sont présentées par le formateur ; les TP sont à compléter (`# TODO`). Chaque TP se termine par un contrôle automatique et une cellule permettant de brancher l'agent sur l'interface Gradio.
+Un agent enquête sur un remboursement Lagune Money absent du dossier d'un client (données fictives). Chaque TP se termine par un contrôle automatique et une cellule Gradio.
 
 | Ordre | Notebook | Notion travaillée | Indicateur observé |
 |---|---|---|---|
@@ -40,13 +38,8 @@ Dans `socle/`, importé par tous les notebooks à partir du TP2 (le TP1 en repre
 
 Le `client_id` n'est jamais un paramètre d'un tool : il vient du contexte d'exécution, rempli par l'application après identification. La table de la base qui contient les transactions Lagune Money s'appelle `transactions_om`.
 
-## Lancer
+## Prérequis
 
-```bash
-uv sync
-uv run jupyter lab
-```
+`.env` : `LLM_API_KEY`, `MODELE` et `MODELE_EMBEDDING` (pour `search_docs`). Chaque notebook appelle le vrai modèle. Les résultats varient d'une exécution à l'autre : les contrôles portent sur l'état de la base et sur les tools appelés, pas sur le texte des réponses.
 
-Renseignez dans `.env` : `LLM_API_KEY` et `MODELE`. Chaque notebook appelle le vrai modèle. Les résultats varient légèrement d'une exécution à l'autre : les contrôles portent sur l'état de la base et sur les tools appelés, pas sur le texte des réponses.
-
-Langfuse est facultatif : sans clés, le TP5 utilise la collecte locale de `socle/tracing.py`. Les autres notebooks fonctionnent sans Langfuse ; les détails de configuration figurent dans `../INSTALLATION.md`.
+Langfuse est facultatif : sans clés, le TP5 utilise la collecte locale de `socle/tracing.py`. Configuration : section Langfuse du [README](../README.md).

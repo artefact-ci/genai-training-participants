@@ -2,7 +2,7 @@
 
 Les participants n'écrivent pas de front : ils écrivent une fonction `answer(message, historique)` et la branchent avec `create`.
 La fonction peut renvoyer (ou produire avec `yield`) une liste de messages : des blocs repliables (chunks utilisés, tools appelés)
-suivis de la réponse. Détails dans `INSTALLATION.md`, section « Interface Gradio ».
+suivis de la réponse.
 
 Gradio 6 : le thème et le CSS se passent au lancement, pas à la création de l'interface (voir `launch`).
 """

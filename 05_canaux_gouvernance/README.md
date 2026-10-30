@@ -1,14 +1,12 @@
 # Module 5 : Canaux et gouvernance
 
-Ce module rend l'assistant de Lagune Banque (données fictives) accessible depuis des canaux de messagerie. Il assemble un service FastAPI, un cœur d'agent commun, des adaptateurs de canal, des garde-fous, du suivi et une estimation des coûts.
+L'assistant de Lagune Banque (données fictives) sur des canaux de messagerie, via un service FastAPI.
 
 ```
 Canal (WhatsApp)  →  adaptateur  →  passerelle  →  cœur de l'agent (graphe du module 3)
                                                       │                 └─ tools, MCP (module 4)
                                                       └─ interface conseiller (validation, reprise)
 ```
-
-Les démos sont présentées par le formateur ; les TP sont à compléter (`# TODO`).
 
 | Ordre | Dossier | Notion travaillée |
 |---|---|---|
@@ -41,9 +39,7 @@ uv run uvicorn service:app --port 8000
 
 ## Suivi avec Langfuse (facultatif)
 
-Si `LANGFUSE_PUBLIC_KEY` et `LANGFUSE_SECRET_KEY` sont renseignées, le service envoie ses traces à Langfuse.
-Il masque d'abord les numéros, les e-mails et les codes. La mise en route est décrite dans `INSTALLATION.md`.
-Sans Langfuse, `suivi.py` écrit les indicateurs dans un fichier JSONL.
+Avec `LANGFUSE_PUBLIC_KEY` et `LANGFUSE_SECRET_KEY`, le service envoie ses traces à Langfuse après avoir masqué numéros, e-mails et codes ([mise en route](../README.md)). Sans elles, `suivi.py` écrit les indicateurs dans un fichier JSONL.
 
 ## Mémoire des conversations
 
