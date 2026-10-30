@@ -8,3 +8,5 @@ __pycache__/
 
 # Bases locales
 *.db
+
+!data/banque.db
