@@ -17,8 +17,8 @@ Canal (WhatsApp)  →  adaptateur  →  passerelle  →  cœur de l'agent (graph
 
 | Dossier | Contenu |
 |---|---|
-| `socle/` | `coeur.py` (agent, garde-fous, reprise), `passerelle.py` (code commun aux canaux), `garde_fous.py`, `historique.py` (conversations), `suivi.py` (tokens, coût, Langfuse), `outils.py` |
-| `service/` | `service.py` (FastAPI) et `canaux/whatsapp.py`, l'adaptateur WhatsApp |
+| `socle/` | `assistant.py` (agent, garde-fous, reprise), `gateway.py` (code commun aux canaux), `guardrails.py`, `history.py` (conversations), `monitoring.py` (tokens, coût, Langfuse), `tools.py` |
+| `service/` | `service.py` (FastAPI) et `channels/whatsapp.py`, l'adaptateur WhatsApp |
 
 ## Lancer le service
 
@@ -38,11 +38,11 @@ uv run uvicorn service:app --port 8000
 
 ## Suivi avec Langfuse (facultatif)
 
-Avec `LANGFUSE_PUBLIC_KEY` et `LANGFUSE_SECRET_KEY`, le service envoie ses traces à Langfuse après avoir masqué numéros, e-mails et codes ([mise en route](../README.md)). Sans elles, `suivi.py` écrit les indicateurs dans un fichier JSONL.
+Avec `LANGFUSE_PUBLIC_KEY` et `LANGFUSE_SECRET_KEY`, le service envoie ses traces à Langfuse après avoir masqué numéros, e-mails et codes ([mise en route](../README.md)). Sans elles, `monitoring.py` écrit les indicateurs dans un fichier JSONL.
 
 ## Mémoire des conversations
 
-`historique.py` enregistre chaque échange dans un fichier SQLite local (`service/conversations.db`, ignoré par Git). La clé est l'identifiant de l'expéditeur : le numéro de téléphone WhatsApp. Le service garde donc le fil d'une conversation après un redémarrage.
+`history.py` enregistre chaque échange dans un fichier SQLite local (`service/conversations.db`, ignoré par Git). La clé est l'identifiant de l'expéditeur : le numéro de téléphone WhatsApp. Le service garde donc le fil d'une conversation après un redémarrage.
 
 - À chaque message, l'agent reçoit l'historique de l'expéditeur. Un message court (« et pour l'Express+ ? ») est compris grâce aux échanges précédents.
 - Quand la conversation dépasse 6 000 caractères, les anciens messages sont résumés par le modèle. Le résumé et les 6 derniers messages restent dans le contexte.

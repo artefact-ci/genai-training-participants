@@ -12,8 +12,8 @@ import tempfile
 from pathlib import Path
 
 DATA = next(p / "data" for p in Path(__file__).resolve().parents if (p / "data" / "banque.db").exists())   # le dossier data/ du dépôt
-sys.path.insert(0, str(next(p / "code_partage" for p in Path(__file__).resolve().parents if (p / "code_partage" / "recherche_docs.py").exists())))
-from recherche_docs import find_docs  # noqa: E402  (recherche dans la documentation, code_partage/)
+sys.path.insert(0, str(next(p / "code_partage" for p in Path(__file__).resolve().parents if (p / "code_partage" / "doc_search.py").exists())))
+from doc_search import find_docs  # noqa: E402  (recherche dans la documentation, code_partage/)
 
 AUJOURDHUI = "2026-11-16"                                         # date de référence des données
 BASE = str(Path(tempfile.gettempdir()) / "lagune_banque_tp.db")   # copie de travail de data/banque.db

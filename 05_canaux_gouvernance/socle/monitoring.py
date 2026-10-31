@@ -1,4 +1,4 @@
-"""Suivi de l'assistant en production : indicateurs techniques, coût par conversation, traces Langfuse (module partagé observabilite.py).
+"""Suivi de l'assistant en production : indicateurs techniques, coût par conversation, traces Langfuse (module partagé observability.py).
 
 Deux familles d'indicateurs : techniques (latence, appels au modèle, outils appelés, tokens, coût) et métier
 (résolution sans humain, transferts, conformité), que le service agrège dans `Metrics`.
@@ -13,8 +13,8 @@ from typing import Optional
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-import garde_fous  # noqa: F401  (ajoute code_partage au chemin d'import)
-from observabilite import clear_langfuse, langfuse_callbacks, langfuse_enabled, pseudonym  # noqa: E402,F401  (traces Langfuse, optionnelles)
+import guardrails  # noqa: F401  (ajoute code_partage au chemin d'import)
+from observability import clear_langfuse, langfuse_callbacks, langfuse_enabled, pseudonym  # noqa: E402,F401  (traces Langfuse, optionnelles)
 
 JOURNAL = Path(os.getenv("SUIVI_JOURNAL") or Path(tempfile.gettempdir()) / "lagune_suivi.jsonl")
 
@@ -39,7 +39,7 @@ class Tracker(BaseCallbackHandler):
     def on_tool_start(self, serialized, input_str, **kw):
         self.outils.append((serialized or {}).get("name") or kw.get("name") or "?")
 
-    def bilan(self) -> dict:
+    def report(self) -> dict:
         """Indicateurs du tour : latence, appels au modèle, tokens, outils."""
         return {"latence_s": round(time.time() - self.debut, 2), "appels_modele": self.appels_modele,
                 "tokens_entree": self.tokens_entree, "tokens_sortie": self.tokens_sortie, "outils": list(self.outils)}
@@ -70,14 +70,14 @@ class Metrics:
         self.c = Counter()
         self.latences: list[float] = []
 
-    def record(self, categorie: Optional[str], bilan: dict, transfert: bool, bloque: bool):
+    def record(self, category: Optional[str], report: dict, transfert: bool, bloque: bool):
         self.c["tours"] += 1
-        self.c[f"categorie_{categorie or 'inconnue'}"] += 1
+        self.c[f"categorie_{category or 'inconnue'}"] += 1
         self.c["transferts"] += transfert
         self.c["bloques_par_garde_fou"] += bloque
-        self.c["tokens_entree"] += bilan.get("tokens_entree", 0)
-        self.c["tokens_sortie"] += bilan.get("tokens_sortie", 0)
-        self.latences.append(bilan.get("latence_s", 0))
+        self.c["tokens_entree"] += report.get("tokens_entree", 0)
+        self.c["tokens_sortie"] += report.get("tokens_sortie", 0)
+        self.latences.append(report.get("latence_s", 0))
 
     def summary(self) -> dict:
         """Les compteurs, la latence moyenne et les taux de transfert et de résolution sans humain."""

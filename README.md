@@ -42,5 +42,5 @@ Variables de `.env` :
 
 - `01_fondamentaux_prompting/` à `05_canaux_gouvernance/` : un dossier par module, avec ses TP et son socle.
 - [`data/`](data/) : la base `banque.db`, le corpus `corpus/` et les jeux d'évaluation `evaluation/`.
-- [`code_partage/`](code_partage/) : le code utilisé par plusieurs modules (`rag.py`, `rag_avance.py`, `weaviate_store.py`, `recherche_docs.py`, `observabilite.py`, `front.py`, `config.py`).
+- [`code_partage/`](code_partage/) : le code utilisé par plusieurs modules (`rag.py`, `rag_advanced.py`, `weaviate_store.py`, `doc_search.py`, `observability.py`, `front.py`, `config.py`).
 - [`scripts/`](scripts/) : `check_env.py` et `verifier_langfuse.py`.

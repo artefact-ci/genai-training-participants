@@ -14,7 +14,7 @@
 | Fichier | Contenu |
 |---|---|
 | `rag.py` | chargement (PDF, HTML, Word, scan), nettoyage, chunking, embeddings, recherche avec filtre de date, reranking, prompt, génération |
-| `rag_avance.py` | réécriture, multi-requête, HyDE, BM25, fusion RRF, mesure du MRR, réponse avec citations vérifiées, juge |
+| `rag_advanced.py` | réécriture, multi-requête, HyDE, BM25, fusion RRF, mesure du MRR, réponse avec citations vérifiées, juge |
 | `weaviate_store.py` | base vectorielle : Weaviate (cloud ou local), ou une base en mémoire si Weaviate est injoignable |
 | `config.py` | charge `.env` et vérifie la connexion aux modèles |
 | `front.py` | thème et blocs de l'interface Gradio |

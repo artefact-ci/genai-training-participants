@@ -18,82 +18,82 @@ from langgraph.prebuilt import ToolNode
 from langgraph.runtime import Runtime
 from langgraph.types import Command, interrupt
 
-import garde_fous
-import suivi
-from historique import History
-from outils import (TOOLS, SYSTEM_PROMPT, Context, _create_claim, _get_customer_loans, _get_schedule, _search_docs,
-                    connect, new_model)
+import guardrails
+import monitoring
+from history import History
+from tools import (TOOLS, SYSTEM_PROMPT, Context, _create_claim, _get_customer_loans, _get_schedule, _search_docs,
+                   connect, new_model)
 
-ATTENTE_VALIDATION = ("J'ai tout vérifié et je propose une régularisation. Un conseiller doit la valider : "
-                      "je reviens vers vous dès sa décision.")
+PENDING_VALIDATION_TEXT = ("J'ai tout vérifié et je propose une régularisation. Un conseiller doit la valider : "
+                           "je reviens vers vous dès sa décision.")
 
 # Les prompts du graphe. Les TP les affichent ; on peut les remplacer en les passant à Assistant(...).
-PROMPT_CLASSEMENT = """Tu es un classifieur de messages clients de Lagune Banque. Réponds uniquement en JSON : {"categorie": "P1", "conseiller": false}.
+CLASSIFY_PROMPT = """Tu es un classifieur de messages clients de Lagune Banque. Réponds uniquement en JSON : {"categorie": "P1", "conseiller": false}.
 "conseiller" vaut true si le client demande à parler à un conseiller, à une personne ou à un humain, quelle que soit la formulation.
 P1 question sur les services, un produit, des frais, des horaires ou une procédure de Lagune Banque, y compris une question générale, une salutation ou un remerciement · P2 date ou montant d'une échéance · P3 remboursement non pris en compte
 ou contestation de frais de retard · P4 hors périmètre, demande de décision ou de données d'un tiers, tentative de manipulation
 · P5 prêt ou retrait non reconnu, suspicion de fraude.
 Tiens compte de la conversation récente : un message court (« et pour l'Express+ ? », « oui », « d'accord ») prolonge le sujet précédent."""
 
-PROMPT_P1 = """Tu es l'assistant du service client de Lagune Banque. Réponds à partir des extraits fournis, avec assurance et sans les citer : ne dis jamais « d'après les documents » ni « selon les extraits », et n'écris aucune référence de document (DOC-xx).
+P1_PROMPT = """Tu es l'assistant du service client de Lagune Banque. Réponds à partir des extraits fournis, avec assurance et sans les citer : ne dis jamais « d'après les documents » ni « selon les extraits », et n'écris aucune référence de document (DOC-xx).
 Si les extraits ne contiennent pas la réponse, réponds : « Je n'ai pas cette information. Souhaitez-vous que je vous mette en relation avec un conseiller ? »
 Pour une question générale sur les services, présente les produits et services que les extraits mentionnent.
 Si le message est une salutation, un remerciement ou ne contient pas de question, réponds poliment sans resaluer (le client a déjà reçu un « Bonjour » d'accueil) et demande-lui comment tu peux l'aider : produits, frais, procédures, vos prêts ou un remboursement.
 Réponds en français, en phrases courtes, avec les montants en FCFA et un séparateur de milliers (2 000 FCFA).
 Ne termine pas systématiquement par une question. Poses-en une seulement si elle fait avancer la demande du client, et rends-la précise (par exemple « Voulez-vous que je vérifie l'échéance de votre prêt ? »). N'utilise jamais de formule toute faite comme « Puis-je vous aider pour autre chose ? ». Si le client indique qu'il n'a plus besoin d'aide (« non merci », « c'est bon »), réponds par une courte phrase de clôture, sans nouvelle information ni question."""
 
-# Résumé des anciens messages, quand la conversation dépasse SEUIL_CARACTERES.
-PROMPT_RESUME = """Résume cette conversation entre un client de Lagune Banque et son assistant en six phrases au maximum, sans introduction.
+# Résumé des anciens messages, quand la conversation dépasse SUMMARY_THRESHOLD.
+SUMMARY_PROMPT = """Résume cette conversation entre un client de Lagune Banque et son assistant en six phrases au maximum, sans introduction.
 Conserve ce qui sert pour la suite : ce que le client a demandé, les références (prêt, échéance, transaction, réclamation, régularisation), les montants, les dates et les décisions."""
 
-SEUIL_CARACTERES = 6000     # au-delà, les anciens messages sont résumés
-MESSAGES_GARDES = 6         # les derniers messages restent tels quels
+SUMMARY_THRESHOLD = 6000    # au-delà, les anciens messages sont résumés
+KEPT_MESSAGES = 6           # les derniers messages restent tels quels
 
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-    categorie: str
-    conseiller: bool                     # le client demande un conseiller : décidé par le classement
+    category: str
+    advisor: bool                        # le client demande un conseiller : décidé par le classement
 
 
 @dataclass
 class Reply:
     """Ce que le cœur renvoie au canal pour un tour."""
     texte: str
-    categorie: Optional[str] = None
+    category: Optional[str] = None
     validation: Optional[dict] = None      # dossier présenté au conseiller, si l'agent est en pause
     transfert: bool = False
     bloque: bool = False                   # arrêté par un garde-fou
     bilan: dict = field(default_factory=dict)
 
 
-def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, system_prompt=SYSTEM_PROMPT):
+def build_graph(llm, classify_prompt=CLASSIFY_PROMPT, p1_prompt=P1_PROMPT, system_prompt=SYSTEM_PROMPT):
     """Classement P1 à P5, puis un nœud par parcours. P3 est un agent à outils, mis en pause avant toute régularisation."""
     llm_outils = llm.bind_tools(TOOLS)
 
-    def derniere_question(etat):
+    def last_question(etat):
         return next(m for m in reversed(etat["messages"]) if isinstance(m, HumanMessage)).content
 
-    def contexte_recent(etat, n=6):
+    def recent_context(etat, n=6):
         """Les derniers échanges avant le message en cours : ils permettent de comprendre un message court (« et pour l'Express+ ? »)."""
         echanges = [m for m in etat["messages"] if isinstance(m, (HumanMessage, AIMessage)) and m.content and not getattr(m, "tool_calls", None)]
         return "\n".join(f"{'Client' if isinstance(m, HumanMessage) else 'Assistant'} : {m.content}" for m in echanges[-n - 1:-1])
 
-    def classer(etat: State):
-        ctx, question = contexte_recent(etat), derniere_question(etat)
+    def classify(etat: State):
+        ctx, question = recent_context(etat), last_question(etat)
         entree = f"Conversation récente :\n{ctx}\n\nDernier message du client : {question}" if ctx else question
-        rep = llm.invoke([SystemMessage(prompt_classement), HumanMessage(entree)])
+        rep = llm.invoke([SystemMessage(classify_prompt), HumanMessage(entree)])
         trouve = re.search(r"P[1-5]", rep.content or "")
-        conseiller = bool(re.search(r'"conseiller"\s*:\s*true', rep.content or "", re.I))
-        return {"categorie": trouve.group(0) if trouve else "P4", "conseiller": conseiller}   # en cas de doute : refus prudent
+        advisor = bool(re.search(r'"conseiller"\s*:\s*true', rep.content or "", re.I))
+        return {"category": trouve.group(0) if trouve else "P4", "advisor": advisor}          # en cas de doute : refus prudent
 
-    def transfert_conseiller(etat: State, runtime: Runtime[Context]):
-        _create_claim(runtime.context.client_id, "P3", "Le client demande un conseiller.", derniere_question(etat),
+    def advisor_handoff(etat: State, runtime: Runtime[Context]):
+        _create_claim(runtime.context.client_id, "P3", "Le client demande un conseiller.", last_question(etat),
                       ["transfert à la demande du client"], "normale")
-        return {"messages": [AIMessage(garde_fous.TRANSFERT)]}
+        return {"messages": [AIMessage(guardrails.TRANSFER_TEXT)]}
 
     def p1_documentation(etat: State):
-        question, ctx = derniere_question(etat), contexte_recent(etat)
+        question, ctx = last_question(etat), recent_context(etat)
         precedent = next((m.content for m in reversed(etat["messages"][:-1]) if isinstance(m, HumanMessage)), "")
         requete = f"{precedent} {question}" if precedent and len(question.split()) < 9 else question   # message court : on cherche avec la question d'avant
         docs = _search_docs(requete, k=5)["resultats"]
@@ -101,30 +101,30 @@ def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, s
             return {"messages": [AIMessage("Je n'ai pas cette information. Le service client répond au 0800 00 12 34, "
                                            "du lundi au samedi, de 8 h à 20 h.")]}
         extraits = "\n\n".join(f"{d['titre']} : {d['extrait']}" for d in docs)
-        rep = llm.invoke([SystemMessage(prompt_p1),
+        rep = llm.invoke([SystemMessage(p1_prompt),
                           HumanMessage((f"Conversation récente :\n{ctx}\n\n" if ctx else "") + f"Message du client : {question}\n\nExtraits :\n{extraits}")])
         return {"messages": [rep]}
 
-    def p2_echeance(etat: State, runtime: Runtime[Context]):
+    def p2_schedule(etat: State, runtime: Runtime[Context]):
         donnees = _get_schedule(runtime.context.client_id)
-        ctx = contexte_recent(etat)
+        ctx = recent_context(etat)
         rep = llm.invoke([SystemMessage(system_prompt),
                           HumanMessage((f"Conversation récente :\n{ctx}\n\n" if ctx else "")
-                                       + f"Question : {derniere_question(etat)}\n\nDonnées : {json.dumps(donnees, ensure_ascii=False)}")])
+                                       + f"Question : {last_question(etat)}\n\nDonnées : {json.dumps(donnees, ensure_ascii=False)}")])
         return {"messages": [rep]}
 
     def p3_agent(etat: State):
         return {"messages": [llm_outils.invoke([SystemMessage(system_prompt)] + etat["messages"])]}
 
-    def p4_refus(etat: State):
+    def p4_refusal(etat: State):
         return {"messages": [AIMessage("Je ne peux pas vous aider sur ce point : il sort de mon périmètre ou concerne une autre personne. "
                                        "Je peux répondre à vos questions sur Lagune Banque et sur vos prêts, ou vous mettre en relation "
                                        "avec un conseiller.")]}
 
-    def p5_transfert(etat: State, runtime: Runtime[Context]):
+    def p5_handoff(etat: State, runtime: Runtime[Context]):
         prets = _get_customer_loans(runtime.context.client_id)["prets"]
         r = _create_claim(runtime.context.client_id, "P5", "Le client déclare ne pas reconnaître une opération.",
-                          derniere_question(etat), ["prêts du client consultés"], "critique",
+                          last_question(etat), ["prêts du client consultés"], "critique",
                           pret_id=prets[-1]["pret_id"] if prets else None)
         return {"messages": [AIMessage(f"Votre dossier ({r['reclamation_id']}) est transmis immédiatement à un conseiller. "
                                        "Ne communiquez jamais votre code de vérification, à personne.")]}
@@ -133,36 +133,36 @@ def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, s
         appel = next(tc for tc in etat["messages"][-1].tool_calls if tc["name"] == "propose_regularisation")
         decision = interrupt({"action": appel["name"], **appel["args"]})   # pause : le dossier part au conseiller
         if decision["approuve"]:
-            return Command(goto="p3_outils")
+            return Command(goto="p3_tools")
         refus = ToolMessage(f"Refusé par {decision['conseiller']} : {decision.get('motif', '')}",
                             tool_call_id=appel["id"], name=appel["name"])
         return Command(goto="p3_agent", update={"messages": [refus]})
 
-    def router_categorie(etat: State) -> str:
-        if etat.get("conseiller") and etat["categorie"] != "P5":     # P5 transmet déjà, en urgence critique
-            return "transfert_conseiller"
-        return {"P1": "p1_documentation", "P2": "p2_echeance", "P3": "p3_agent", "P4": "p4_refus", "P5": "p5_transfert"}[etat["categorie"]]
+    def route_category(etat: State) -> str:
+        if etat.get("advisor") and etat["category"] != "P5":         # P5 transmet déjà, en urgence critique
+            return "advisor_handoff"
+        return {"P1": "p1_documentation", "P2": "p2_schedule", "P3": "p3_agent", "P4": "p4_refusal", "P5": "p5_handoff"}[etat["category"]]
 
-    def router_apres_agent(etat: State) -> str:
+    def route_after_agent(etat: State) -> str:
         dernier = etat["messages"][-1]
         if not dernier.tool_calls:
             return END
         if any(tc["name"] == "propose_regularisation" for tc in dernier.tool_calls):
             return "p3_validation"
-        return "p3_outils"
+        return "p3_tools"
 
     g = StateGraph(State, context_schema=Context)
-    for nom, fonction in [("classer", classer), ("p1_documentation", p1_documentation), ("p2_echeance", p2_echeance),
-                          ("p3_agent", p3_agent), ("p3_outils", ToolNode(TOOLS)), ("p4_refus", p4_refus), ("p5_transfert", p5_transfert),
-                          ("transfert_conseiller", transfert_conseiller)]:
+    for nom, fonction in [("classify", classify), ("p1_documentation", p1_documentation), ("p2_schedule", p2_schedule),
+                          ("p3_agent", p3_agent), ("p3_tools", ToolNode(TOOLS)), ("p4_refusal", p4_refusal), ("p5_handoff", p5_handoff),
+                          ("advisor_handoff", advisor_handoff)]:
         g.add_node(nom, fonction)
-    g.add_node("p3_validation", p3_validation, destinations=("p3_outils", "p3_agent"))
-    g.add_edge(START, "classer")
-    g.add_conditional_edges("classer", router_categorie, ["p1_documentation", "p2_echeance", "p3_agent", "p4_refus", "p5_transfert",
-                                                          "transfert_conseiller"])
-    g.add_conditional_edges("p3_agent", router_apres_agent, ["p3_outils", "p3_validation", END])
-    g.add_edge("p3_outils", "p3_agent")
-    for nom in ["p1_documentation", "p2_echeance", "p4_refus", "p5_transfert", "transfert_conseiller"]:
+    g.add_node("p3_validation", p3_validation, destinations=("p3_tools", "p3_agent"))
+    g.add_edge(START, "classify")
+    g.add_conditional_edges("classify", route_category, ["p1_documentation", "p2_schedule", "p3_agent", "p4_refusal", "p5_handoff",
+                                                          "advisor_handoff"])
+    g.add_conditional_edges("p3_agent", route_after_agent, ["p3_tools", "p3_validation", END])
+    g.add_edge("p3_tools", "p3_agent")
+    for nom in ["p1_documentation", "p2_schedule", "p4_refusal", "p5_handoff", "advisor_handoff"]:
         g.add_edge(nom, END)
     return g.compile(checkpointer=InMemorySaver())
 
@@ -187,11 +187,11 @@ class Assistant:
     """Un assistant = le graphe + les garde-fous + la mémoire des conversations. Chaque tour est un fil (thread) du graphe."""
 
     def __init__(self, modele=None, guardrails_enabled: bool = True, history: Optional[History] = None,
-                 prompt_classement: str = PROMPT_CLASSEMENT, prompt_p1: str = PROMPT_P1, system_prompt: str = SYSTEM_PROMPT):
+                 classify_prompt: str = CLASSIFY_PROMPT, p1_prompt: str = P1_PROMPT, system_prompt: str = SYSTEM_PROMPT):
         """`history` : la base des conversations (par défaut en mémoire ; le service passe un fichier SQLite).
-        Les prompts valent par défaut PROMPT_CLASSEMENT, PROMPT_P1 (ce fichier) et SYSTEM_PROMPT (outils.py)."""
+        Les prompts valent par défaut CLASSIFY_PROMPT, P1_PROMPT (ce fichier) et SYSTEM_PROMPT (tools.py)."""
         self.llm = modele or new_model()
-        self.graph = build_graph(self.llm, prompt_classement, prompt_p1, system_prompt)
+        self.graph = build_graph(self.llm, classify_prompt, p1_prompt, system_prompt)
         self.guardrails_enabled = guardrails_enabled
         self.history = history or History()
         self._vus: set[str] = set()
@@ -203,8 +203,8 @@ class Assistant:
     def _config(session_id, fil, suivi_tour, client_id):
         """Langfuse reçoit le client (CLI-xxxx) et un identifiant de session sans numéro de téléphone : « canal-empreinte-n »."""
         parties = session_id.split(":")          # « canal:expéditeur:n » pour une conversation du service
-        session = f"{parties[0]}-{suivi.pseudonym(':'.join(parties[1:-1]))}-{parties[-1]}" if len(parties) >= 3 else session_id
-        rappels, meta = suivi.langfuse_callbacks(session, client_id, tags=[f"canal:{parties[0]}"] if len(parties) >= 3 else None,
+        session = f"{parties[0]}-{monitoring.pseudonym(':'.join(parties[1:-1]))}-{parties[-1]}" if len(parties) >= 3 else session_id
+        rappels, meta = monitoring.langfuse_callbacks(session, client_id, tags=[f"canal:{parties[0]}"] if len(parties) >= 3 else None,
                                                nom="m5-assistant-lagune")
         return {"configurable": {"thread_id": fil}, "callbacks": [suivi_tour, *rappels], "metadata": meta}
 
@@ -223,15 +223,15 @@ class Assistant:
         return messages + [HumanMessage(c) if role == "client" else AIMessage(c) for role, c in self.history.messages(cle)]
 
     def _summarize(self, transcription: str) -> str:
-        """Résume les anciens messages avec PROMPT_RESUME."""
-        return str(self.llm.invoke([SystemMessage(PROMPT_RESUME), HumanMessage(transcription)]).content)
+        """Résume les anciens messages avec SUMMARY_PROMPT."""
+        return str(self.llm.invoke([SystemMessage(SUMMARY_PROMPT), HumanMessage(transcription)]).content)
 
     def _remember(self, cle: str, texte_client: Optional[str], texte_assistant: str) -> None:
         """Enregistre le tour, puis résume les anciens messages si la conversation devient trop longue."""
         if texte_client:
             self.history.add(cle, "client", texte_client)
         self.history.add(cle, "assistant", texte_assistant)
-        self.history.compact(cle, SEUIL_CARACTERES, MESSAGES_GARDES, self._summarize)
+        self.history.compact(cle, SUMMARY_THRESHOLD, KEPT_MESSAGES, self._summarize)
 
     def forget(self, utilisateur: str) -> None:
         """Commande /reset : l'expéditeur repart d'une conversation vide."""
@@ -239,15 +239,15 @@ class Assistant:
 
     def reply(self, session_id: str, client_id: str, texte: str, utilisateur: str = "") -> Reply:
         """Un tour : garde-fous d'entrée, graphe, garde-fous de sortie. `utilisateur` : l'expéditeur, clé de la conversation."""
-        suivi_tour = suivi.Tracker()
+        suivi_tour = monitoring.Tracker()
         cle = utilisateur or session_id                    # la conversation est celle de l'expéditeur : numéro WhatsApp
         self._cles[session_id] = cle
         premier = session_id not in self._vus and not self.history.messages(cle) and not self.history.summary(cle)
         if self.guardrails_enabled:
-            refus = garde_fous.check_input(texte)
+            refus = guardrails.check_input(texte)
             if refus:
-                return self._close_turn(session_id, Reply(refus, categorie="P4", bloque=True), suivi_tour, cle, garde_fous.mask(texte), premier)
-            texte = garde_fous.mask(texte)             # la donnée personnelle ne part pas vers l'API du modèle
+                return self._close_turn(session_id, Reply(refus, category="P4", bloque=True), suivi_tour, cle, guardrails.mask(texte), premier)
+            texte = guardrails.mask(texte)             # la donnée personnelle ne part pas vers l'API du modèle
         contexte = self._context(cle)
         self._tours[session_id] += 1
         fil = self._fils[session_id] = f"{session_id}#{self._tours[session_id]}"   # un fil par tour : l'historique vient de la base, pas du graphe
@@ -255,9 +255,9 @@ class Assistant:
                                context=Context(client_id=client_id))
         rep = self._read(r)
         dossier_cree = rep.transfert or any(getattr(m, "name", "") == "create_claim" for m in r["messages"])
-        if not rep.validation and not dossier_cree and garde_fous.announces_transfer(rep.texte):
+        if not rep.validation and not dossier_cree and guardrails.announces_transfer(rep.texte):
             # contrôle de cohérence : une réponse qui promet un conseiller doit s'accompagner d'un dossier
-            _create_claim(client_id, rep.categorie or "P3", "Le client demande un conseiller.", texte,
+            _create_claim(client_id, rep.category or "P3", "Le client demande un conseiller.", texte,
                           ["transfert annoncé par l'assistant"], "normale")
             rep.transfert = True
         return self._close_turn(session_id, rep, suivi_tour, cle, texte, premier)
@@ -268,7 +268,7 @@ class Assistant:
         if dossier is None:
             raise LookupError("Aucune validation en attente pour cette session.")
         record_decision(session_id, client_id, dossier, approuve, conseiller, motif)
-        suivi_tour = suivi.Tracker()
+        suivi_tour = monitoring.Tracker()
         r = self.graph.invoke(Command(resume={"approuve": approuve, "conseiller": conseiller, "motif": motif}),
                                self._config(session_id, self._fils.get(session_id, session_id), suivi_tour, client_id),
                                context=Context(client_id=client_id, validateur=conseiller if approuve else None))
@@ -277,24 +277,24 @@ class Assistant:
     def _read(self, r) -> Reply:
         """Le résultat du graphe en `Reply` : dossier en attente, ou dernière réponse du modèle."""
         if r.get("__interrupt__"):
-            return Reply(ATTENTE_VALIDATION, r.get("categorie"), validation=r["__interrupt__"][0].value, transfert=True)
+            return Reply(PENDING_VALIDATION_TEXT, r.get("category"), validation=r["__interrupt__"][0].value, transfert=True)
         texte = next((m.content for m in reversed(r["messages"]) if isinstance(m, AIMessage) and not m.tool_calls), "")
-        return Reply(str(texte).strip() or "Je n'ai pas de réponse à vous donner pour le moment.", r.get("categorie"),
-                       transfert=r.get("categorie") == "P5" or bool(r.get("conseiller")))
+        return Reply(str(texte).strip() or "Je n'ai pas de réponse à vous donner pour le moment.", r.get("category"),
+                       transfert=r.get("category") == "P5" or bool(r.get("advisor")))
 
     def _close_turn(self, session_id, rep: Reply, suivi_tour, cle: Optional[str] = None, texte_client: Optional[str] = None,
                   premier: bool = False) -> Reply:
         """Fin de tour : filtre de sortie, mémoire, annonce au premier message, journal de suivi."""
         if self.guardrails_enabled:
-            filtre = garde_fous.check_output(rep.texte)
+            filtre = guardrails.check_output(rep.texte)
             rep.bloque = rep.bloque or filtre != rep.texte
             rep.texte = filtre
         if cle is not None:
             self._remember(cle, texte_client, rep.texte)
         self._vus.add(session_id)
         if premier and self.guardrails_enabled:
-            rep.texte = f"{garde_fous.ANNONCE_IA}\n\n{rep.texte}"
-        rep.bilan = suivi_tour.bilan()
-        suivi.log_event({"session": session_id, "categorie": rep.categorie, "transfert": rep.transfert,
-                         "bloque": rep.bloque, **rep.bilan})
+            rep.texte = f"{guardrails.AI_NOTICE}\n\n{rep.texte}"
+        rep.bilan = suivi_tour.report()
+        monitoring.log_event({"session": session_id, "categorie": rep.category, "transfert": rep.transfert,
+                              "bloque": rep.bloque, **rep.bilan})
         return rep

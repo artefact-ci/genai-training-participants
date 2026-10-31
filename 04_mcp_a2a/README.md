@@ -10,8 +10,8 @@ Serveur MCP des prêts et des échéances de Lagune Banque, connecté à l'agent
 
 | Fichier | Rôle |
 |---|---|
-| `socle/outils.py` | Accès aux données des prêts et à la documentation, utilisé par le serveur MCP ; les données sont dans `data/` |
-| `socle/pont_mcp.py` | Adaptation des outils MCP au format d'outils LangChain |
+| `socle/loans.py` | Accès aux données des prêts et à la documentation, utilisé par le serveur MCP ; les données sont dans `data/` |
+| `socle/mcp_bridge.py` | Adaptation des outils MCP au format d'outils LangChain |
 
 ## Prérequis
 

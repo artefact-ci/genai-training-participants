@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 
 from base import AUJOURDHUI, connect
-from recherche_docs import find_docs
+from doc_search import find_docs
 
 
 def fetch_loans(client_id):

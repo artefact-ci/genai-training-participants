@@ -6,12 +6,12 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(next(p / "socle" for p in Path(__file__).resolve().parents if (p / "socle" / "outils.py").exists())))
+sys.path.insert(0, str(next(p / "socle" for p in Path(__file__).resolve().parents if (p / "socle" / "loans.py").exists())))
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
-from outils import _get_customer_loans, _get_schedule, _search_docs  # noqa: F401
+from loans import _get_customer_loans, _get_schedule, _search_docs  # noqa: F401
 
 mcp = FastMCP("lagune-prets")
 

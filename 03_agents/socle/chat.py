@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 import front
 from base import KOUASSI, Context
-from observabilite import clear_langfuse, langfuse_callbacks
+from observability import clear_langfuse, langfuse_callbacks
 
 CLIENTS = ["CLI-0002", "CLI-0001", "CLI-0003", "CLI-0004"]  # clients proposés dans la liste déroulante
 

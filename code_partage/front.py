@@ -50,11 +50,11 @@ def block(titre: str, contenu: str, id: Optional[str] = None, duree: Optional[fl
 
 def chunks_block(chunks: list[dict], duree: float) -> gr.ChatMessage:
     """Les chunks d'un RAG (`rag.search`) : document, version, distance ou score de reranker, et extrait."""
-    def mesure(p):
+    def measure(p):
         return " · ".join(f"{nom} {p[cle]:.2f}" for cle, nom in (("distance", "distance"), ("score", "score")) if cle in p)
 
     detail = "\n\n".join(
-        f"**{p['meta']['source']}** · {p['meta']['titre']} (version {p['meta']['version']}) · {mesure(p)}\n> {' '.join(p['texte'].split())[:220]}…"
+        f"**{p['meta']['source']}** · {p['meta']['titre']} (version {p['meta']['version']}) · {measure(p)}\n> {' '.join(p['texte'].split())[:220]}…"
         for p in chunks)
     return block("Chunks utilisés", detail or "Aucun chunk en vigueur à cette date.", duree=duree)
 

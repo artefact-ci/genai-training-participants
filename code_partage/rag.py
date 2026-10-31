@@ -1,6 +1,6 @@
 """Briques du RAG : charger, nettoyer, découper, calculer les embeddings, rechercher, reclasser, générer.
 
-Utilisé par les TP du module 2, et par `recherche_docs.py` pour l'outil `search_docs` des modules 3, 4 et 5.
+Utilisé par les TP du module 2, et par `doc_search.py` pour l'outil `search_docs` des modules 3, 4 et 5.
 Les modèles sont appelés via LiteLLM : pour changer de fournisseur, modifiez MODELE et MODELE_EMBEDDING dans .env.
 Inspiré du TP de chunking de souleymanecoulibaly-stack (branche tp-rag-lagune-bank).
 """

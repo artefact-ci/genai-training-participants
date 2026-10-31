@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 ROOT = next(p for p in Path(__file__).resolve().parents if (p / "data" / "banque.db").exists())
 DATA = ROOT / "data"
-sys.path.insert(0, str(ROOT / "code_partage"))  # recherche_docs, front, observabilite
+sys.path.insert(0, str(ROOT / "code_partage"))  # doc_search, front, observability
 
 AUJOURDHUI = "2026-11-16"  # date de référence des données fictives
 HIER = "2026-11-15"

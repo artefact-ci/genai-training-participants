@@ -13,14 +13,14 @@ CHAMPS = ["source", "titre", "version", "date_effet", "date_fin", "page"]   # m�
 
 
 # ------------------------------------------------------------------ repli en mémoire
-class ClientMemoire:
+class MemoryClient:
     """Même rôle que le client Weaviate : fabrique des collections, se ferme."""
 
     def close(self):
         pass
 
 
-class MemoireCollection:
+class MemoryCollection:
     """Collection en mémoire : comparaison avec tous les vecteurs, rien n'est conservé après le notebook."""
 
     def __init__(self, client, name):
@@ -45,7 +45,7 @@ class MemoireCollection:
 def connect():
     """Se connecte à Weaviate (cloud, puis local) ; à défaut, base en mémoire."""
     if os.getenv("VECTEUR") == "memoire":
-        return ClientMemoire()
+        return MemoryClient()
     import weaviate
     url = os.getenv("WEAVIATE_URL")
     try:
@@ -55,7 +55,7 @@ def connect():
     except Exception as e:                                                  # Docker non lancé, réseau bloqué...
         print(f"Weaviate injoignable ({type(e).__name__}) : repli sur la base en mémoire. "
               "Pour Weaviate : `docker compose up -d` à la racine du dépôt.")
-        return ClientMemoire()
+        return MemoryClient()
 
 
 class WeaviateCollection:
@@ -97,4 +97,4 @@ class WeaviateCollection:
 
 def create_collection(client, name, reutiliser=False):
     """Une collection sur le client fourni par connect(). Elle est recréée si elle existe, sauf avec `reutiliser=True` et une collection non vide."""
-    return MemoireCollection(client, name) if isinstance(client, ClientMemoire) else WeaviateCollection(client, name, reutiliser)
+    return MemoryCollection(client, name) if isinstance(client, MemoryClient) else WeaviateCollection(client, name, reutiliser)

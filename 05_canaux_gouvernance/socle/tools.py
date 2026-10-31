@@ -17,8 +17,8 @@ from typing import Optional
 import pandas as pd
 
 DATA = next(p / "data" for p in Path(__file__).resolve().parents if (p / "data" / "banque.db").exists())   # le dossier data/ du dépôt
-sys.path.insert(0, str(next(p / "code_partage" for p in Path(__file__).resolve().parents if (p / "code_partage" / "recherche_docs.py").exists())))
-from recherche_docs import find_docs  # noqa: E402  (recherche dans la documentation, code_partage/)
+sys.path.insert(0, str(next(p / "code_partage" for p in Path(__file__).resolve().parents if (p / "code_partage" / "doc_search.py").exists())))
+from doc_search import find_docs  # noqa: E402  (recherche dans la documentation, code_partage/)
 
 AUJOURDHUI = "2026-11-16"                                         # date de référence des données
 BASE = str(Path(tempfile.gettempdir()) / "lagune_banque_tp.db")   # copie de travail de data/banque.db
@@ -228,7 +228,7 @@ def propose_regularisation(echeance_id: str, transaction_id: str, justification:
 TOOLS = [search_docs, get_customer_loans, get_schedule, check_lm_transaction, check_platform_incident, create_claim,
           propose_regularisation]
 
-# Le prompt de l'agent (parcours P2 et P3 de coeur.py).
+# Le prompt de l'agent (parcours P2 et P3 de assistant.py).
 SYSTEM_PROMPT = f"""Tu es l'assistant automatisé du service client de Lagune Banque. Tu es un programme, tu ne te présentes jamais comme une personne.
 Nous sommes le {AUJOURDHUI}. Tu réponds en français, en phrases courtes et simples, avec assurance : tu parles au nom de Lagune Banque.
 Tu ne dis jamais « d'après les documents » et tu n'écris aucune référence de document (DOC-xx). Montants en FCFA avec séparateur
