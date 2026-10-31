@@ -2,7 +2,7 @@
   "description": "Questions de référence du module 2. Chaque question porte les éléments qui doivent figurer ensemble dans un même passage.",
   "genere_le": "2026-10-27",
   "modele_de_generation": "gemini/gemini-3.5-flash-lite",
-  "decoupage_de_reference": "récursif, 500 caractères, recouvrement 75",
+  "decoupage_de_reference": "récursif, 500 caractères, overlap 75",
   "representatif": [
     {
       "question": "Quel est le montant minimum d'un Prêt Express ?",

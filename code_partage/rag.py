@@ -77,16 +77,16 @@ def strip_headers(pages: list[tuple[int, str]], nb_lignes: int = 3) -> list[tupl
 
 
 # ------------------------------------------------------------------ chunking
-def split_documents(documents: list[dict], taille: int, recouvrement: int, nom: str = "") -> list[dict]:
+def split_documents(documents: list[dict], chunk_size: int, overlap: int, nom: str = "") -> list[dict]:
     """Un dict par chunk : id, texte et métadonnées (source, titre, version, dates, page).
-    Le même découpage récursif pour toutes les tailles : seuls `taille` et `recouvrement` varient d'un essai à l'autre."""
+    Le même découpage récursif pour toutes les tailles : seuls `chunk_size` et `overlap` varient d'un essai à l'autre."""
     from langchain_text_splitters import RecursiveCharacterTextSplitter
-    coupeur = RecursiveCharacterTextSplitter(chunk_size=taille, chunk_overlap=recouvrement, separators=["\n\n", "\n", ". ", " ", ""])
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap, separators=["\n\n", "\n", ". ", " ", ""])
     chunks = []
     for d in documents:
         for page, texte in d["pages"]:
-            for i, morceau in enumerate(coupeur.split_text(texte)):
-                chunks.append({"id": f"{nom}_{d['id']}_p{page}_{i}", "texte": morceau,
+            for i, chunk in enumerate(splitter.split_text(texte)):
+                chunks.append({"id": f"{nom}_{d['id']}_p{page}_{i}", "texte": chunk,
                                  "meta": {"source": d["id"], "titre": d["titre"], "version": d["version"],
                                           "date_effet": d["date_effet"] or "", "date_fin": d["date_fin"] or "", "page": str(page)}})
     return chunks

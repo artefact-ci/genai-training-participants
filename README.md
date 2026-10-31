@@ -5,13 +5,13 @@ Le fil rouge est un assistant support client pour Lagune Banque (données fictiv
 
 ## Programme
 
-| Jour | Module | Contenu |
-|---|---|---|
-| Lun 02/11 | [1. Fondamentaux et prompting](01_fondamentaux_prompting/README.md) | paramètres de génération, réponses avec sources, prompting, sorties structurées, appels d'outils |
-| Mar 03/11 | [2. RAG et données métier](02_rag/README.md) | découpage, reformulation, recherche hybride et reranking, réponses contrôlées, évaluation et interface |
-| Mer 04/11 et jeu 05/11 (matin) | [3. Agents LangChain et LangGraph](03_agents/README.md) | outils, mémoire, sécurité, orchestration, traces et débogage |
-| Jeu 05/11 (après-midi) | [4. Interopérabilité MCP et A2A](04_mcp_a2a/README.md) | serveur MCP, injection indirecte, connexion à un agent et Agent Card A2A |
-| Ven 06/11 | [5. Canaux et gouvernance](05_canaux_gouvernance/README.md) | canal WhatsApp, garde-fous, validation humaine, suivi et coûts |
+| Jour | Module |
+|---|---|
+| Lun 02/11 | [1. Fondamentaux et prompting](01_fondamentaux_prompting/README.md) |
+| Mar 03/11 | [2. RAG et données métier](02_rag/README.md) |
+| Mer 04/11 et jeu 05/11 (matin) | [3. Agents LangChain et LangGraph](03_agents/README.md) |
+| Jeu 05/11 (après-midi) | [4. Interopérabilité MCP et A2A](04_mcp_a2a/README.md) |
+| Ven 06/11 | [5. Canaux et gouvernance](05_canaux_gouvernance/README.md) |
 
 ## Démarrer
 

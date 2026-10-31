@@ -9,7 +9,7 @@ import atexit
 import rag
 from weaviate_store import connect
 
-TAILLE, RECOUVREMENT = 500, 75       # le découpage retenu au TP1 du module 2
+CHUNK_SIZE, OVERLAP = 500, 75       # le découpage retenu au TP1 du module 2
 COLLECTION = "docs_agents"
 _index = None
 
@@ -22,7 +22,7 @@ def _build():
             d["pages"] = rag.strip_headers(d["pages"])
     client = connect()
     atexit.register(client.close)
-    return rag.index_chunks(client, COLLECTION, rag.split_documents(documents, TAILLE, RECOUVREMENT, "agents"), reutiliser=True)
+    return rag.index_chunks(client, COLLECTION, rag.split_documents(documents, CHUNK_SIZE, OVERLAP, "agents"), reutiliser=True)
 
 
 def find_docs(question: str, date: str, k: int = 3) -> list[dict]:
