@@ -54,6 +54,8 @@ class Passerelle:
         self.identites: dict[tuple[str, str], str] = {}           # (canal, utilisateur) -> client_id
         self.sessions: dict[tuple[str, str], int] = defaultdict(int)   # compteur de /reset
         self.validations: dict[str, dict] = {}                     # session_id -> dossier en attente
+        self.transferts: dict[str, dict] = {}                      # référence de réclamation -> dossier transmis
+        self.prises: dict[tuple[str, str], str] = {}               # (canal, utilisateur) -> dossier pris par un conseiller
         self.max_par_heure = int(os.getenv("MAX_MSG_PER_HOUR") or 30)
         self.identification_par_commande = os.getenv("IDENTIFICATION_PAR_COMMANDE", "1") == "1"
         self._vus: set[str] = set()
@@ -110,10 +112,16 @@ class Passerelle:
                 if msg.canal == "whatsapp":                      # le numéro exact à copier dans IDENTITES
                     print(f"Numéro WhatsApp inconnu : {msg.utilisateur}. Pour l'identifier, ajoutez-le dans IDENTITES (.env).")
                 return await canal.envoyer(msg.utilisateur, AIDE_IDENTIFICATION)
+            prise = self.prises.get((msg.canal, msg.utilisateur))
+            if prise:                                            # un conseiller a la main : l'assistant ne répond pas
+                self.transferts[prise]["messages"].append({"de": "client", "texte": texte, "heure": time.strftime("%H:%M")})
+                self.assistant.history.add(msg.utilisateur, "client", texte)
+                return
             session = self._session(msg)
             if session in self.validations:
                 return await canal.envoyer(msg.utilisateur, "Votre demande est en cours de validation par un conseiller. "
                                                            "Je vous écris dès qu'il a décidé.")
+            deja = self._reclamations(client_id)
             try:
                 rep = await asyncio.to_thread(self.assistant.reply, session, client_id, texte, msg.utilisateur)
             except Exception as e:                                 # le client ne voit jamais une trace d'erreur
@@ -125,6 +133,13 @@ class Passerelle:
                 self.validations[session] = {"session": session, "canal": msg.canal, "utilisateur": msg.utilisateur,
                                              "client_id": client_id, "dossier": rep.validation,
                                              "recu_le": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            for ref, dossier in self._reclamations(client_id).items():   # dossiers créés pendant ce tour : handoffs
+                if ref not in deja:
+                    self.transferts[ref] = {"reference": ref, "session": session, "canal": msg.canal, "utilisateur": msg.utilisateur,
+                                            "client_id": client_id, "dossier": dossier, "recu_le": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                            "statut": "nouveau", "conseiller": None,
+                                            "messages": [{"de": role, "texte": c, "heure": ""} for role, c in
+                                                         self.assistant.history.messages(msg.utilisateur)[-6:]]}
             await canal.envoyer(msg.utilisateur, rep.texte)
 
     def _commande(self, msg: Message, nom: str, argument: str) -> str:
@@ -147,6 +162,56 @@ class Passerelle:
         return "Commande inconnue."
 
     # ------------------------------------------------------------ côté conseiller
+    def _reclamations(self, client_id: str) -> dict[str, dict]:
+        """Les réclamations du client dans la base : référence -> dossier."""
+        with connect() as con:
+            lignes = con.execute("SELECT reclamation_id, dossier_json FROM reclamations WHERE client_id = ?", (client_id,)).fetchall()
+        return {ref: json.loads(d) for ref, d in lignes}
+
+    def transferts_en_cours(self) -> list[dict]:
+        """Les dossiers transmis par l'assistant : nouveaux, ou pris en charge par un conseiller."""
+        return list(self.transferts.values())
+
+    def _dossier(self, reference: str) -> dict:
+        if reference not in self.transferts:
+            raise LookupError("Aucun dossier transmis avec cette référence.")
+        return self.transferts[reference]
+
+    async def _ecrire(self, dossier: dict, texte: str) -> None:
+        """Message du conseiller : envoyé dans le canal, gardé dans le dossier et dans la mémoire de la conversation."""
+        await self.canaux[dossier["canal"]].envoyer(dossier["utilisateur"], texte)
+        self.assistant.history.add(dossier["utilisateur"], "assistant", texte)
+        dossier["messages"].append({"de": "conseiller", "texte": texte, "heure": time.strftime("%H:%M")})
+
+    async def prendre_en_charge(self, reference: str, conseiller: str) -> str:
+        """Le conseiller prend la main : l'assistant se tait et les messages du client lui arrivent."""
+        dossier = self._dossier(reference)
+        dossier["statut"], dossier["conseiller"] = "en_cours", conseiller
+        self.prises[(dossier["canal"], dossier["utilisateur"])] = reference
+        with connect() as con:
+            con.execute("UPDATE reclamations SET statut = 'en_cours' WHERE reclamation_id = ?", (reference,))
+        texte = f"Un conseiller de Lagune Banque prend la suite de votre demande (dossier {reference}). Vous pouvez lui écrire ici."
+        await self._ecrire(dossier, texte)
+        return texte
+
+    async def message_conseiller(self, reference: str, texte: str) -> None:
+        """Un message écrit par le conseiller, envoyé au client."""
+        dossier = self._dossier(reference)
+        if dossier["statut"] != "en_cours":
+            raise LookupError("Prenez d'abord le dossier en charge.")
+        await self._ecrire(dossier, texte)
+
+    async def clore(self, reference: str) -> str:
+        """Le conseiller termine l'échange : le dossier est clos et l'assistant reprend la conversation."""
+        dossier = self._dossier(reference)
+        texte = "Votre échange avec le conseiller est terminé. L'assistant de Lagune Banque reste à votre disposition ici."
+        await self._ecrire(dossier, texte)
+        self.prises.pop((dossier["canal"], dossier["utilisateur"]), None)
+        del self.transferts[reference]
+        with connect() as con:
+            con.execute("UPDATE reclamations SET statut = 'close' WHERE reclamation_id = ?", (reference,))
+        return texte
+
     def en_attente(self) -> list[dict]:
         """Les dossiers en attente de la décision d'un conseiller."""
         return list(self.validations.values())

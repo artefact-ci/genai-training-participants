@@ -5,7 +5,7 @@ L'assistant de Lagune Banque (données fictives) sur des canaux de messagerie, v
 ```
 Canal (WhatsApp)  →  adaptateur  →  passerelle  →  cœur de l'agent (graphe du module 3)
                                                       │                 └─ tools, MCP (module 4)
-                                                      └─ interface conseiller (validation, reprise)
+                                                      └─ interface conseiller (validation, échange)
 ```
 
 | Ordre | Dossier | Notion travaillée |

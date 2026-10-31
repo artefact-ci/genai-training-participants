@@ -36,6 +36,14 @@ class Decision(BaseModel):
     motif: str = ""
 
 
+class PriseEnCharge(BaseModel):
+    conseiller: str
+
+
+class MessageConseiller(BaseModel):
+    texte: str
+
+
 PAGE_CONSEILLER = (ICI / "conseiller.html").read_text(encoding="utf-8")
 
 
@@ -80,6 +88,36 @@ def creer_app(assistant: Assistant | None = None) -> FastAPI:
     @app.get("/conseiller/validations", dependencies=[Depends(conseiller)])
     async def validations():
         return passerelle.en_attente()
+
+    @app.get("/conseiller/transferts", dependencies=[Depends(conseiller)])
+    async def transferts():
+        return passerelle.transferts_en_cours()
+
+    @app.post("/conseiller/transferts/{reference}/prise-en-charge", dependencies=[Depends(conseiller)])
+    async def prise_en_charge(reference: str, p: PriseEnCharge):
+        try:
+            texte = await passerelle.prendre_en_charge(reference, p.conseiller)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        return {"statut": "pris en charge", "message_au_client": texte}
+
+    @app.post("/conseiller/transferts/{reference}/message", dependencies=[Depends(conseiller)])
+    async def message(reference: str, m: MessageConseiller):
+        if not m.texte.strip():
+            raise HTTPException(status_code=400, detail="Message vide.")
+        try:
+            await passerelle.message_conseiller(reference, m.texte.strip())
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        return {"statut": "envoyé"}
+
+    @app.post("/conseiller/transferts/{reference}/cloture", dependencies=[Depends(conseiller)])
+    async def cloture(reference: str):
+        try:
+            texte = await passerelle.clore(reference)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        return {"statut": "clos", "message_au_client": texte}
 
     @app.post("/conseiller/validations/{session:path}/decision", dependencies=[Depends(conseiller)])
     async def decision(session: str, d: Decision):

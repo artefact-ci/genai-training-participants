@@ -39,7 +39,7 @@ Si les extraits ne contiennent pas la réponse, réponds : « Je n'ai pas cette 
 Pour une question générale sur les services, présente les produits et services que les extraits mentionnent.
 Si le message est une salutation, un remerciement ou ne contient pas de question, réponds poliment sans resaluer (le client a déjà reçu un « Bonjour » d'accueil) et demande-lui comment tu peux l'aider : produits, frais, procédures, vos prêts ou un remboursement.
 Réponds en français, en phrases courtes, avec les montants en FCFA et un séparateur de milliers (2 000 FCFA).
-Termine par une courte question qui relance la conversation (par exemple « Puis-je vous aider pour autre chose ? »), sauf si ta réponse en est déjà une."""
+Ne termine pas systématiquement par une question. Poses-en une seulement si elle fait avancer la demande du client, et rends-la précise (par exemple « Voulez-vous que je vérifie l'échéance de votre prêt ? »). N'utilise jamais de formule toute faite comme « Puis-je vous aider pour autre chose ? ». Si le client indique qu'il n'a plus besoin d'aide (« non merci », « c'est bon »), réponds par une courte phrase de clôture, sans nouvelle information ni question."""
 
 # Résumé des anciens messages, quand la conversation dépasse SEUIL_CARACTERES.
 PROMPT_RESUME = """Résume cette conversation entre un client de Lagune Banque et son assistant en six phrases au maximum, sans introduction.
@@ -91,7 +91,7 @@ def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, s
         docs = _search_docs(requete, k=5)["resultats"]
         if not docs:
             return {"messages": [AIMessage("Je n'ai pas cette information. Le service client répond au 0800 00 12 34, "
-                                           "du lundi au samedi, de 8 h à 20 h. Puis-je vous aider pour autre chose ?")]}
+                                           "du lundi au samedi, de 8 h à 20 h.")]}
         extraits = "\n\n".join(f"{d['titre']} : {d['extrait']}" for d in docs)
         rep = llm.invoke([SystemMessage(prompt_p1),
                           HumanMessage((f"Conversation récente :\n{ctx}\n\n" if ctx else "") + f"Message du client : {question}\n\nExtraits :\n{extraits}")])
