@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espace conseiller</title>
+<style>
+  :root {
+    --fond: #f4f6f8; --surface: #ffffff; --texte: #18212b; --doux: #5b6672; --trait: #e1e6eb;
+    --marque: #0b5e55; --marque-clair: #e3f1ee; --refus: #b42318; --refus-clair: #fdecea;
+    --attente: #b54708; --attente-clair: #fef3e2; --ombre: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #0f1418; --surface: #182027; --texte: #e6ebef; --doux: #95a1ad; --trait: #2a343d;
+      --marque: #3fb8a4; --marque-clair: #16322e; --refus: #f97066; --refus-clair: #3a1d1b;
+      --attente: #fdb022; --attente-clair: #3a2a10; --ombre: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--surface); border-bottom: 1px solid var(--trait); }
+  .barre { max-width: 880px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 650; }
+  .logo span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--marque); color: #fff; font-size: 14px; }
+  .logo small { display: block; font-weight: 400; color: var(--doux); font-size: 12px; }
+  .identite { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--doux); font-size: 13px; }
+  .identite input { width: 92px; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 6px; background: var(--fond); color: var(--texte); font: inherit; }
+  main { max-width: 880px; margin: 0 auto; padding: 24px 16px 48px; }
+  .entete { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  .compteur { background: var(--attente-clair); color: var(--attente); border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 600; }
+  .compteur.vide { background: var(--marque-clair); color: var(--marque); }
+  .direct { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--doux); font-size: 13px; }
+  .direct i { width: 8px; height: 8px; border-radius: 50%; background: var(--marque); animation: pouls 2s infinite; }
+  .direct.coupe i { background: var(--refus); animation: none; }
+  @keyframes pouls { 50% { opacity: .3; } }
+  .carte { background: var(--surface); border: 1px solid var(--trait); border-radius: 12px; box-shadow: var(--ombre); margin-bottom: 16px; overflow: hidden; }
+  .carte.nouvelle { animation: arrivee .5s ease-out; }
+  @keyframes arrivee { from { transform: translateY(-6px); opacity: 0; } }
+  .carte-tete { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--trait); flex-wrap: wrap; }
+  .client { font-weight: 650; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--fond); color: var(--doux); border: 1px solid var(--trait); }
+  .heure { margin-left: auto; color: var(--doux); font-size: 13px; }
+  .carte-corps { padding: 16px 18px; }
+  .action { font-weight: 600; margin: 0 0 12px; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 14px; }
+  dt { color: var(--doux); }
+  dd { margin: 0; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 14px; word-break: break-word; }
+  .justification { margin: 0; padding: 10px 14px; background: var(--fond); border-left: 3px solid var(--marque); border-radius: 0 8px 8px 0; color: var(--texte); }
+  .justification b { display: block; font-size: 12px; color: var(--doux); font-weight: 600; margin-bottom: 2px; }
+  .carte-pied { display: flex; gap: 10px; padding: 12px 18px; background: var(--fond); border-top: 1px solid var(--trait); flex-wrap: wrap; align-items: flex-start; }
+  button { font: inherit; font-weight: 600; border-radius: 8px; padding: 8px 16px; cursor: pointer; border: 1px solid transparent; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .valider { background: var(--marque); color: #fff; }
+  .refuser { background: transparent; color: var(--refus); border-color: var(--refus); }
+  .annuler { background: transparent; color: var(--doux); border-color: var(--trait); }
+  .motif { flex-basis: 100%; display: none; gap: 8px; flex-direction: column; }
+  .motif.ouvert { display: flex; }
+  .motif textarea { width: 100%; min-height: 64px; padding: 8px 10px; border: 1px solid var(--trait); border-radius: 8px; background: var(--surface); color: var(--texte); font: inherit; resize: vertical; }
+  .motif div { display: flex; gap: 8px; }
+  .vide-etat { text-align: center; padding: 48px 16px; color: var(--doux); background: var(--surface); border: 1px dashed var(--trait); border-radius: 12px; }
+  .vide-etat b { display: block; color: var(--texte); font-size: 16px; margin-bottom: 4px; }
+  .message { border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; border: 1px solid; }
+  .message.ok { background: var(--marque-clair); border-color: var(--marque); }
+  .message.ko { background: var(--refus-clair); border-color: var(--refus); }
+  .message b { display: block; margin-bottom: 4px; }
+  .message q { display: block; quotes: none; color: var(--texte); }
+  h2 { font-size: 15px; margin: 32px 0 10px; color: var(--doux); font-weight: 600; }
+  .historique { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--trait); border-radius: 12px; }
+  .historique li { display: flex; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--trait); font-size: 14px; flex-wrap: wrap; }
+  .historique li:first-child { border-top: 0; }
+  .historique .etat { font-weight: 600; min-width: 64px; }
+  .historique .etat.oui { color: var(--marque); }
+  .historique .etat.non { color: var(--refus); }
+  .historique .quand { margin-left: auto; color: var(--doux); }
+  .erreur { padding: 16px 18px; border-radius: 12px; background: var(--refus-clair); color: var(--refus); }
+  @media (max-width: 560px) { dl { grid-template-columns: 1fr; gap: 0; } dd { margin-bottom: 8px; } .identite { margin-left: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="barre">
+    <div class="logo"><span>LB</span><div>Lagune Banque<small>Espace conseiller</small></div></div>
+    <label class="identite">Conseiller <input id="conseiller" value="CONS-01" autocomplete="off"></label>
+  </div>
+</header>
+<main>
+  <div class="entete">
+    <h1>Validations en attente</h1>
+    <span id="compteur" class="compteur">…</span>
+    <span id="direct" class="direct"><i></i><span>Mise à jour automatique</span></span>
+  </div>
+  <div id="retour"></div>
+  <div id="liste"></div>
+  <h2 id="titre-historique" hidden>Décisions de la session</h2>
+  <ul id="historique" class="historique" hidden></ul>
+</main>
+<script>
+const LIBELLES = {echeance_id: "Échéance", transaction_id: "Transaction Lagune Money", incident_id: "Incident plateforme"};
+const ACTIONS = {propose_regularisation: "Régularisation : rattacher le paiement, annuler les frais de retard, lever la suspension"};
+const CANAUX = {whatsapp: "WhatsApp"};
+const vus = new Set();
+let premierChargement = true;
+
+const el = (balise, classe, texte) => {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined) e.textContent = texte;
+  return e;
+};
+const heure = (d = new Date()) => d.toLocaleTimeString("fr-FR", {hour: "2-digit", minute: "2-digit"});
+const masque = numero => numero && numero.length > 4 ? "•••• " + numero.slice(-4) : (numero || "");
+
+function carte(x) {
+  const c = el("article", "carte" + (premierChargement || vus.has(x.session) ? "" : " nouvelle"));
+  const tete = el("div", "carte-tete");
+  tete.append(el("span", "client", "Client " + x.client_id), el("span", "badge", CANAUX[x.canal] || x.canal));
+  if (x.utilisateur) tete.append(el("span", "badge", masque(String(x.utilisateur))));
+  tete.append(el("span", "heure", x.recu_le ? "Reçu à " + heure(new Date(x.recu_le)) : ""));
+
+  const corps = el("div", "carte-corps");
+  const d = x.dossier || {};
+  corps.append(el("p", "action", ACTIONS[d.action] || d.action || "Action à valider"));
+  const dl = el("dl");
+  for (const [cle, libelle] of Object.entries(LIBELLES)) {
+    if (d[cle] === null || d[cle] === undefined || d[cle] === "") continue;
+    dl.append(el("dt", "", libelle), el("dd", "", d[cle]));
+  }
+  for (const [cle, valeur] of Object.entries(d)) {          // champs non prévus : affichés tels quels
+    if (cle in LIBELLES || cle === "action" || cle === "justification" || valeur === null || valeur === "") continue;
+    dl.append(el("dt", "", cle), el("dd", "", typeof valeur === "object" ? JSON.stringify(valeur) : valeur));
+  }
+  corps.append(dl);
+  if (d.justification) {
+    const j = el("p", "justification");
+    j.append(el("b", "", "Justification de l'assistant"), document.createTextNode(d.justification));
+    corps.append(j);
+  }
+
+  const pied = el("div", "carte-pied");
+  const ok = el("button", "valider", "Valider");
+  const non = el("button", "refuser", "Refuser");
+  const zone = el("div", "motif");
+  const motif = el("textarea");
+  motif.placeholder = "Motif du refus, transmis à l'assistant";
+  const boutons = el("div");
+  const confirmer = el("button", "refuser", "Confirmer le refus");
+  const annuler = el("button", "annuler", "Annuler");
+  boutons.append(confirmer, annuler);
+  zone.append(motif, boutons);
+  ok.onclick = () => decider(x, true, "", [ok, non, confirmer]);
+  non.onclick = () => { zone.classList.add("ouvert"); motif.focus(); };
+  annuler.onclick = () => zone.classList.remove("ouvert");
+  confirmer.onclick = () => decider(x, false, motif.value.trim(), [ok, non, confirmer]);
+  pied.append(ok, non, zone);
+
+  c.append(tete, corps, pied);
+  return c;
+}
+
+async function decider(x, approuve, motif, boutons) {
+  boutons.forEach(b => b.disabled = true);
+  const conseiller = document.getElementById("conseiller").value.trim() || "CONS-01";
+  const retour = document.getElementById("retour");
+  try {
+    const r = await fetch("/conseiller/validations/" + encodeURIComponent(x.session) + "/decision", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({approuve, conseiller, motif})});
+    if (!r.ok) throw new Error(await r.text());
+    const rep = await r.json();
+    retour.replaceChildren(message("ok", (approuve ? "Régularisation validée" : "Demande refusée") + " pour le client " + x.client_id,
+                                   "Message envoyé au client :", rep.message_au_client));
+    historiser(x, approuve, conseiller);
+  } catch (e) {
+    retour.replaceChildren(message("ko", "La décision n'a pas pu être enregistrée", "", String(e.message || e)));
+    boutons.forEach(b => b.disabled = false);
+  }
+  charger();
+}
+
+function message(type, titre, sous, texte) {
+  const m = el("div", "message " + type);
+  m.append(el("b", "", titre));
+  if (sous) m.append(el("span", "", sous));
+  if (texte) m.append(el("q", "", texte));
+  return m;
+}
+
+function historiser(x, approuve, conseiller) {
+  const ul = document.getElementById("historique");
+  const li = el("li");
+  li.append(el("span", "etat " + (approuve ? "oui" : "non"), approuve ? "Validé" : "Refusé"),
+            el("span", "", "Client " + x.client_id + " · " + (CANAUX[x.canal] || x.canal) + " · par " + conseiller),
+            el("span", "quand", heure()));
+  ul.prepend(li);
+  ul.hidden = false;
+  document.getElementById("titre-historique").hidden = false;
+}
+
+async function charger() {
+  const liste = document.getElementById("liste"), direct = document.getElementById("direct"), compteur = document.getElementById("compteur");
+  let dossiers;
+  try {
+    const r = await fetch("/conseiller/validations", {cache: "no-store"});
+    if (r.status === 403) {
+      liste.replaceChildren(el("div", "erreur", "Accès refusé : cette page ne s'ouvre que sur la machine qui exécute le service."));
+      return;
+    }
+    dossiers = await r.json();
+    direct.classList.remove("coupe");
+    direct.lastElementChild.textContent = "Mise à jour à " + heure();
+  } catch {
+    direct.classList.add("coupe");
+    direct.lastElementChild.textContent = "Service injoignable";
+    return;
+  }
+  if (document.querySelector(".motif.ouvert")) return;     // ne pas effacer un motif en cours de saisie
+  compteur.textContent = dossiers.length ? dossiers.length + " en attente" : "Aucun dossier";
+  compteur.classList.toggle("vide", !dossiers.length);
+  if (!dossiers.length) {
+    const v = el("div", "vide-etat");
+    v.append(el("b", "", "Rien en attente"), document.createTextNode("Les demandes de régularisation apparaîtront ici dès que l'assistant en propose une."));
+    liste.replaceChildren(v);
+  } else {
+    liste.replaceChildren(...dossiers.map(carte));
+  }
+  dossiers.forEach(x => vus.add(x.session));
+  premierChargement = false;
+}
+
+charger();
+setInterval(charger, 4000);
+</script>
+</body>
+</html>

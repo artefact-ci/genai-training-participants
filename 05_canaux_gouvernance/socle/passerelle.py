@@ -123,7 +123,8 @@ class Passerelle:
             self.metriques.record(rep.categorie, rep.bilan, rep.transfert, rep.bloque)
             if rep.validation:
                 self.validations[session] = {"session": session, "canal": msg.canal, "utilisateur": msg.utilisateur,
-                                             "client_id": client_id, "dossier": rep.validation}
+                                             "client_id": client_id, "dossier": rep.validation,
+                                             "recu_le": time.strftime("%Y-%m-%dT%H:%M:%S")}
             await canal.envoyer(msg.utilisateur, rep.texte)
 
     def _commande(self, msg: Message, nom: str, argument: str) -> str:

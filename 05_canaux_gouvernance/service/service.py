@@ -36,40 +36,7 @@ class Decision(BaseModel):
     motif: str = ""
 
 
-PAGE_CONSEILLER = """<!doctype html><meta charset="utf-8"><title>Conseiller – validations</title>
-<style>body{font:16px system-ui;max-width:760px;margin:2rem auto;padding:0 1rem}.carte{border:1px solid #ccc;border-radius:8px;padding:1rem;margin:1rem 0}
-dl{display:grid;grid-template-columns:max-content 1fr;gap:.3rem 1rem;margin:.6rem 0}dt{color:#555}dd{margin:0}
-button{margin-right:.5rem;padding:.4rem .8rem}.ok{background:#e7f6ea;border:1px solid #9bd3a7;border-radius:8px;padding:.7rem;margin:1rem 0}</style>
-<h1>Validations en attente</h1>
-<p>Conseiller : <input id="qui" value="CONS-01" size="8"> <button onclick="charge()">Actualiser</button></p>
-<div id="resultat"></div>
-<div id="liste"></div>
-<script>
-const LIBELLES = {action: "Action demandée", echeance_id: "Échéance", transaction_id: "Transaction Lagune Money", incident_id: "Incident de la plateforme",
-                  justification: "Justification de l'assistant"};
-const ACTIONS = {propose_regularisation: "Régularisation : rattacher le paiement, annuler les frais de retard, lever la suspension"};
-function ligne(dl, libelle, valeur){ const dt = document.createElement("dt"), dd = document.createElement("dd");
-  dt.textContent = libelle; dd.textContent = valeur; dl.append(dt, dd); }
-async function charge(){ const r = await fetch("/conseiller/validations"); const l = document.getElementById("liste");
-  if (!r.ok){ l.textContent = "Accès refusé : cette page n'est ouverte que depuis la machine qui exécute le service."; return; }
-  const v = await r.json(); l.textContent = v.length ? "" : "Rien en attente.";
-  v.forEach(x => { const d = document.createElement("div"); d.className = "carte";
-    const titre = document.createElement("b"); titre.textContent = "Client " + x.client_id + " (" + x.canal + ")"; d.append(titre);
-    const dl = document.createElement("dl");
-    for (const [cle, valeur] of Object.entries(x.dossier)){ if (valeur === null || valeur === "") continue;
-      ligne(dl, LIBELLES[cle] || cle, cle === "action" ? (ACTIONS[valeur] || valeur) : valeur); }
-    d.append(dl);
-    for (const [lib, ok] of [["Valider", true], ["Refuser", false]]){ const b = document.createElement("button"); b.textContent = lib;
-      b.onclick = async () => { const motif = ok ? "" : (prompt("Motif du refus ?") || "");
-        const rep = await fetch("/conseiller/validations/" + encodeURIComponent(x.session) + "/decision", {method: "POST",
-          headers: {"Content-Type": "application/json"}, body: JSON.stringify({approuve: ok, conseiller: document.getElementById("qui").value, motif})});
-        const res = document.getElementById("resultat"); res.className = "ok";
-        res.textContent = rep.ok ? (ok ? "Validé. " : "Refusé. ") + "Message envoyé au client : " + (await rep.json()).message_au_client : "Erreur : " + (await rep.text());
-        charge(); };
-      d.append(b); }
-    document.getElementById("liste").append(d); }); }
-charge();
-</script>"""
+PAGE_CONSEILLER = (ICI / "conseiller.html").read_text(encoding="utf-8")
 
 
 def creer_app(assistant: Assistant | None = None) -> FastAPI:

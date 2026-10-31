@@ -26,10 +26,15 @@ class CanalWhatsAppTP:
         raise NotImplementedError("TODO 1")
 
     async def envoyer(self, utilisateur: str, texte: str) -> None:
-        """Envoie `texte` au numéro `utilisateur`. WhatsApp limite un message à 4096 caractères.
-
-        TODO 2 : POST sur self.url, avec self.entetes, via httpx.AsyncClient. Le JSON est
-        {"messaging_product": "whatsapp", "to": utilisateur, "type": "text", "text": {"body": texte}}.
-        Découpez les textes de plus de 4096 caractères et affichez l'erreur si le code de retour est >= 400.
+        """Envoie `texte` au numéro `utilisateur`. WhatsApp limite un message à 4096 caractères : un texte plus long part
+        en plusieurs messages. Le découpage et l'appel HTTP sont fournis.
         """
-        raise NotImplementedError("TODO 2")
+        morceaux = [texte[i:i + LIMITE_MESSAGE] for i in range(0, max(len(texte), 1), LIMITE_MESSAGE)]
+        for morceau in morceaux:
+            # TODO 2 : traduisez le morceau au format de l'API WhatsApp. Remplacez les deux "" par le numéro du
+            # destinataire et par le texte du morceau.
+            corps = {"messaging_product": "whatsapp", "to": "", "type": "text", "text": {"body": ""}}
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.post(self.url, headers=self.entetes, json=corps)
+            if r.status_code >= 400:
+                print("Erreur WhatsApp :", r.status_code, r.text)
