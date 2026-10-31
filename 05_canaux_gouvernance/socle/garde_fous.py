@@ -30,7 +30,10 @@ CREDIT_SORTIE = [
     r"je vous accorde", r"nous vous accordons", r"pr[eê]t (?:est |a été )?(?:accord[ée]|approuv[ée]|octroy[ée])",
     r"vous [êe]tes [ée]ligible", r"j'ai (?:augment[ée]|relev[ée])", r"votre plafond (?:sera|est port[ée])",
 ]
-DEMANDE_CONSEILLER = r"(parler|passer|transf[ée]rer?|mettre|joindre)\b.{0,30}\b(conseiller|humain|quelqu'un)|\bconseiller\b\s*$|^\s*conseiller\b"
+DEMANDE_CONSEILLER = (r"(parler|pass(?:er|ez)|transf[ée]r(?:er|ez)?|mett(?:re|ez)|joindre|avoir)\b.{0,30}\b(conseiller|humain|quelqu.?un|qlq|qqn|qq1"
+                      r"|une? (vraie |autre )?personne|un agent)|\bconseiller\b\s*$|^\s*conseiller\b")
+# l'assistant annonce un transfert : un dossier doit alors exister pour le conseiller
+ANNONCE_TRANSFERT = r"\b(je vous (mets|transf[eè]re)|je transmets)\b.{0,40}\bconseiller"
 
 
 def check_input(texte: str) -> Optional[str]:
@@ -55,6 +58,11 @@ def check_output(texte: str) -> str:
     if any(re.search(m, texte, re.I) for m in CREDIT_SORTIE):
         return REFUS_CREDIT
     return texte
+
+
+def announces_transfer(texte: str) -> bool:
+    """True si la réponse de l'assistant annonce une mise en relation avec un conseiller."""
+    return bool(re.search(ANNONCE_TRANSFERT, texte, re.I))
 
 
 def asks_for_advisor(texte: str) -> bool:

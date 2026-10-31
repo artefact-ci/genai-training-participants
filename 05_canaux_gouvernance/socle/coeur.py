@@ -244,7 +244,14 @@ class Assistant:
         fil = self._fils[session_id] = f"{session_id}#{self._tours[session_id]}"   # un fil par tour : l'historique vient de la base, pas du graphe
         r = self.graph.invoke({"messages": [*contexte, HumanMessage(texte)]}, self._config(session_id, fil, suivi_tour, client_id),
                                context=Context(client_id=client_id))
-        return self._close_turn(session_id, self._read(r), suivi_tour, cle, texte, premier)
+        rep = self._read(r)
+        dossier_cree = any(getattr(m, "name", "") == "create_claim" for m in r["messages"]) or rep.categorie == "P5"
+        if not rep.validation and not dossier_cree and garde_fous.announces_transfer(rep.texte):
+            # l'assistant promet un conseiller sans avoir créé de dossier : on le crée, sinon personne ne recevrait la demande
+            _create_claim(client_id, rep.categorie or "P3", "Le client demande un conseiller.", texte,
+                          ["transfert annoncé par l'assistant"], "normale")
+            rep.transfert = True
+        return self._close_turn(session_id, rep, suivi_tour, cle, texte, premier)
 
     def decide(self, session_id: str, client_id: str, approuve: bool, conseiller: str, motif: str = "") -> Reply:
         """Le conseiller valide ou refuse : la décision est enregistrée, puis l'agent reprend là où il s'était arrêté."""
