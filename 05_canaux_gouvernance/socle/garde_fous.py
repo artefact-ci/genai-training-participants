@@ -17,7 +17,7 @@ ANNONCE_IA = "Bonjour, je suis l'assistant virtuel de Lagune Banque. Vous pouvez
 REFUS_CREDIT = ("Je ne peux pas prendre de décision de crédit (octroi, plafond, rééchelonnement). "
                 "Un conseiller peut étudier votre demande : écrivez « conseiller » et je vous mets en relation.")
 
-TRANSFERT = "Je vous mets en relation avec un conseiller. Votre dossier lui est transmis : vous n'aurez pas à tout répéter."
+TRANSFERT = "Je transmets votre demande à un conseiller. Il vous répond ici dès qu'il la prend en charge."
 
 # LLM06 (Excessive Agency) : l'assistant ne décide pas d'un crédit, ni en entrée ni en sortie.
 CREDIT_ENTREE = [
