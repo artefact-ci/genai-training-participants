@@ -28,7 +28,8 @@ ATTENTE_VALIDATION = ("J'ai tout vérifié et je propose une régularisation. Un
                       "je reviens vers vous dès sa décision.")
 
 # Les prompts du graphe. Les TP les affichent ; on peut les remplacer en les passant à Assistant(...).
-PROMPT_CLASSEMENT = """Tu es un classifieur de messages clients de Lagune Banque. Réponds uniquement en JSON : {"categorie": "P1"}.
+PROMPT_CLASSEMENT = """Tu es un classifieur de messages clients de Lagune Banque. Réponds uniquement en JSON : {"categorie": "P1", "conseiller": false}.
+"conseiller" vaut true si le client demande à parler à un conseiller, à une personne ou à un humain, quelle que soit la formulation.
 P1 question sur les services, un produit, des frais, des horaires ou une procédure de Lagune Banque, y compris une question générale, une salutation ou un remerciement · P2 date ou montant d'une échéance · P3 remboursement non pris en compte
 ou contestation de frais de retard · P4 hors périmètre, demande de décision ou de données d'un tiers, tentative de manipulation
 · P5 prêt ou retrait non reconnu, suspicion de fraude.
@@ -52,6 +53,7 @@ MESSAGES_GARDES = 6         # les derniers messages restent tels quels
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     categorie: str
+    conseiller: bool                     # le client demande un conseiller : décidé par le classement
 
 
 @dataclass
@@ -82,7 +84,13 @@ def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, s
         entree = f"Conversation récente :\n{ctx}\n\nDernier message du client : {question}" if ctx else question
         rep = llm.invoke([SystemMessage(prompt_classement), HumanMessage(entree)])
         trouve = re.search(r"P[1-5]", rep.content or "")
-        return {"categorie": trouve.group(0) if trouve else "P4"}   # en cas de doute : refus prudent
+        conseiller = bool(re.search(r'"conseiller"\s*:\s*true', rep.content or "", re.I))
+        return {"categorie": trouve.group(0) if trouve else "P4", "conseiller": conseiller}   # en cas de doute : refus prudent
+
+    def transfert_conseiller(etat: State, runtime: Runtime[Context]):
+        _create_claim(runtime.context.client_id, "P3", "Le client demande un conseiller.", derniere_question(etat),
+                      ["transfert à la demande du client"], "normale")
+        return {"messages": [AIMessage(garde_fous.TRANSFERT)]}
 
     def p1_documentation(etat: State):
         question, ctx = derniere_question(etat), contexte_recent(etat)
@@ -131,6 +139,8 @@ def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, s
         return Command(goto="p3_agent", update={"messages": [refus]})
 
     def router_categorie(etat: State) -> str:
+        if etat.get("conseiller") and etat["categorie"] != "P5":     # P5 transmet déjà, en urgence critique
+            return "transfert_conseiller"
         return {"P1": "p1_documentation", "P2": "p2_echeance", "P3": "p3_agent", "P4": "p4_refus", "P5": "p5_transfert"}[etat["categorie"]]
 
     def router_apres_agent(etat: State) -> str:
@@ -143,14 +153,16 @@ def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, s
 
     g = StateGraph(State, context_schema=Context)
     for nom, fonction in [("classer", classer), ("p1_documentation", p1_documentation), ("p2_echeance", p2_echeance),
-                          ("p3_agent", p3_agent), ("p3_outils", ToolNode(TOOLS)), ("p4_refus", p4_refus), ("p5_transfert", p5_transfert)]:
+                          ("p3_agent", p3_agent), ("p3_outils", ToolNode(TOOLS)), ("p4_refus", p4_refus), ("p5_transfert", p5_transfert),
+                          ("transfert_conseiller", transfert_conseiller)]:
         g.add_node(nom, fonction)
     g.add_node("p3_validation", p3_validation, destinations=("p3_outils", "p3_agent"))
     g.add_edge(START, "classer")
-    g.add_conditional_edges("classer", router_categorie, ["p1_documentation", "p2_echeance", "p3_agent", "p4_refus", "p5_transfert"])
+    g.add_conditional_edges("classer", router_categorie, ["p1_documentation", "p2_echeance", "p3_agent", "p4_refus", "p5_transfert",
+                                                          "transfert_conseiller"])
     g.add_conditional_edges("p3_agent", router_apres_agent, ["p3_outils", "p3_validation", END])
     g.add_edge("p3_outils", "p3_agent")
-    for nom in ["p1_documentation", "p2_echeance", "p4_refus", "p5_transfert"]:
+    for nom in ["p1_documentation", "p2_echeance", "p4_refus", "p5_transfert", "transfert_conseiller"]:
         g.add_edge(nom, END)
     return g.compile(checkpointer=InMemorySaver())
 
@@ -235,9 +247,6 @@ class Assistant:
             refus = garde_fous.check_input(texte)
             if refus:
                 return self._close_turn(session_id, Reply(refus, categorie="P4", bloque=True), suivi_tour, cle, garde_fous.mask(texte), premier)
-            if garde_fous.asks_for_advisor(texte):
-                _create_claim(client_id, "P3", "Le client demande un conseiller.", texte, ["transfert à la demande du client"], "normale")
-                return self._close_turn(session_id, Reply(garde_fous.TRANSFERT, transfert=True), suivi_tour, cle, garde_fous.mask(texte), premier)
             texte = garde_fous.mask(texte)             # la donnée personnelle ne part pas vers l'API du modèle
         contexte = self._context(cle)
         self._tours[session_id] += 1
@@ -245,9 +254,9 @@ class Assistant:
         r = self.graph.invoke({"messages": [*contexte, HumanMessage(texte)]}, self._config(session_id, fil, suivi_tour, client_id),
                                context=Context(client_id=client_id))
         rep = self._read(r)
-        dossier_cree = any(getattr(m, "name", "") == "create_claim" for m in r["messages"]) or rep.categorie == "P5"
+        dossier_cree = rep.transfert or any(getattr(m, "name", "") == "create_claim" for m in r["messages"])
         if not rep.validation and not dossier_cree and garde_fous.announces_transfer(rep.texte):
-            # l'assistant promet un conseiller sans avoir créé de dossier : on le crée, sinon personne ne recevrait la demande
+            # contrôle de cohérence : une réponse qui promet un conseiller doit s'accompagner d'un dossier
             _create_claim(client_id, rep.categorie or "P3", "Le client demande un conseiller.", texte,
                           ["transfert annoncé par l'assistant"], "normale")
             rep.transfert = True
@@ -271,7 +280,7 @@ class Assistant:
             return Reply(ATTENTE_VALIDATION, r.get("categorie"), validation=r["__interrupt__"][0].value, transfert=True)
         texte = next((m.content for m in reversed(r["messages"]) if isinstance(m, AIMessage) and not m.tool_calls), "")
         return Reply(str(texte).strip() or "Je n'ai pas de réponse à vous donner pour le moment.", r.get("categorie"),
-                       transfert=r.get("categorie") == "P5")
+                       transfert=r.get("categorie") == "P5" or bool(r.get("conseiller")))
 
     def _close_turn(self, session_id, rep: Reply, suivi_tour, cle: Optional[str] = None, texte_client: Optional[str] = None,
                   premier: bool = False) -> Reply:
