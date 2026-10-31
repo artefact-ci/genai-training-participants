@@ -1,35 +1,17 @@
-"""Tools de l'agent Lagune Banque : solution du TP1 du module 3, réutilisée par les TP et démos suivants."""
+"""Tools et system prompt de l'agent Lagune Banque, tels qu'écrits au TP1. Les TP suivants les importent.
+
+Chaque tool enveloppe une fonction de business.py. Sa docstring est la description que lit le modèle.
+"""
 import json
-from datetime import datetime, timedelta
 from typing import Optional
 
 from langchain.tools import ToolRuntime, tool
 
-from base import AUJOURDHUI, Context, connect, reset_db
-from business import apply_regularisation, fetch_docs, fetch_loans, fetch_schedule, insert_claim
+from base import AUJOURDHUI, Context, reset_db
+from business import (apply_regularisation, fetch_docs, fetch_incidents, fetch_lm_transactions, fetch_loans,
+                      fetch_schedule, insert_claim)
 
 reset_db()
-
-
-def fetch_lm_transactions(client_id, date, montant=None):
-    """Remboursements Lagune Money du client entre la veille et le surlendemain de `date` (AAAA-MM-JJ)."""
-    jour = datetime.fromisoformat(date[:10])
-    debut, fin = (jour - timedelta(days=1)).date().isoformat(), (jour + timedelta(days=2)).date().isoformat()
-    with connect() as con:
-        lignes = con.execute(
-            "SELECT transaction_id, montant, date_heure, statut, code_echec, echeance_rattachee, libelle FROM transactions_om "
-            "WHERE client_id = ? AND type = 'remboursement_pret' AND date_heure >= ? AND date_heure < ? "
-            "AND (? IS NULL OR montant = ?) ORDER BY date_heure", (client_id, debut, fin, montant, montant)).fetchall()
-    return {"transactions": [dict(t) for t in lignes]}
-
-
-def fetch_incidents(date_heure):
-    """Incidents qui couvrent `date_heure` (AAAA-MM-JJTHH:MM), et ceux du même jour."""
-    with connect() as con:
-        couvrants = con.execute("SELECT * FROM incidents_plateforme WHERE debut <= ? AND fin >= ?", (date_heure, date_heure)).fetchall()
-        meme_jour = con.execute("SELECT * FROM incidents_plateforme WHERE substr(debut, 1, 10) = ?", (date_heure[:10],)).fetchall()
-    return {"date_heure": date_heure, "incidents_a_cette_heure": [dict(r) for r in couvrants],
-            "incidents_du_jour": [dict(r) for r in meme_jour]}
 
 
 @tool
@@ -96,6 +78,7 @@ def propose_regularisation(echeance_id: str, transaction_id: str, justification:
 TOOLS = [search_docs, get_customer_loans, get_schedule, check_lm_transaction, check_platform_incident, create_claim,
           propose_regularisation]
 
+# System prompt de l'agent, écrit au TP1 (section « L'agent ») ; les TP3 à TP5 l'affichent avant de s'en servir.
 SYSTEM_PROMPT = f"""Tu es l'assistant automatisé du service client de Lagune Banque. Tu es un programme, tu ne te présentes jamais comme une personne.
 Nous sommes le {AUJOURDHUI}. Tu réponds en français, en phrases courtes et simples, et tu cites tes sources (DOC-xx).
 

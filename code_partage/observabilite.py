@@ -1,14 +1,8 @@
-"""Observabilité avec Langfuse Cloud, partagée par les modules 2, 3 et 5, et masquage des données personnelles avant tout envoi.
+"""Traces Langfuse Cloud (modules 2, 3, 4 et 5) et masquage des données personnelles avant tout envoi.
 
-Mise en route (une fois pour toute la formation) :
-  1. Créer un compte **Hobby** gratuit sur https://cloud.langfuse.com (50 000 unités par mois, sans carte bancaire), puis un projet.
-  2. Settings > API Keys : copier la clé publique et la clé secrète dans `.env` (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY).
-  3. LANGFUSE_HOST doit correspondre à la **région du projet** : https://cloud.langfuse.com (Europe, par défaut) ou
-     https://us.cloud.langfuse.com (États-Unis). Des clés valides sur la mauvaise région sont refusées.
-  4. Vérifier : `uv run python scripts/verifier_langfuse.py` (depuis la racine du dépôt).
-
-Sans clés, rien n'est envoyé et rien ne casse : `langfuse_callbacks()` renvoie des listes vides. Une trace contient des questions de
-clients : elle est masquée (`mask`) AVANT l'envoi, comme tout ce qui part vers une API hébergée hors du pays.
+Clés dans `.env` : LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY et LANGFUSE_HOST (la région du projet, voir le README).
+Vérification : `uv run python scripts/verifier_langfuse.py`. Sans clés, rien n'est envoyé et rien ne casse.
+Une trace contient des questions de clients : elle est masquée (`mask`) avant l'envoi.
 """
 import hashlib
 import os
@@ -55,8 +49,7 @@ def langfuse_client():
     if _client is None:
         os.environ.setdefault("LANGFUSE_HOST", HOTE_PAR_DEFAUT)
         from langfuse import Langfuse
-        # FastMCP émet ses propres spans OpenTelemetry (un par appel d'outil) : sans ce filtre, Langfuse les reçoit comme des traces séparées
-        # (« get_schedule », sans session ni client) en double de celles de LangChain.
+        # on écarte les spans de FastMCP : ils arriveraient en traces séparées, en double de celles de LangChain
         from langfuse.span_filter import is_default_export_span
         _client = Langfuse(mask=mask_data, should_export_span=lambda span: is_default_export_span(span)
                            and (span.instrumentation_scope is None or span.instrumentation_scope.name != "fastmcp"))
@@ -71,8 +64,7 @@ def pseudonym(valeur: str, prefixe: str = "") -> str:
 def langfuse_callbacks(session_id: str = "", utilisateur: str = "", tags: Optional[list[str]] = None, nom: str = "") -> tuple[list, dict]:
     """(callbacks, metadata) à ajouter à la config d'un appel LangChain ou LangGraph : `config={"callbacks": cb, "metadata": meta}`.
     Les deux sont vides si Langfuse n'est pas configuré. Les traces d'une même conversation partagent `session_id`.
-    `nom` : le nom de la trace dans Langfuse (convention `m<module>-<usage>`, en minuscules). Sans nom, Langfuse affiche celui
-    de l'exécution racine : « LangGraph » pour un graphe, « ChatLiteLLM » pour un appel direct au modèle."""
+    `nom` : le nom de la trace dans Langfuse (convention `m<module>-<usage>`, en minuscules)."""
     if langfuse_client() is None:
         return [], {}
     from langfuse.langchain import CallbackHandler

@@ -25,6 +25,7 @@ AIDE_IDENTIFICATION = ("Pour commencer, identifiez-vous : envoyez /client suivi 
 
 @dataclass
 class Message:
+    """Un message entrant, quel que soit le canal."""
     canal: str
     utilisateur: str        # identifiant propre au canal (numéro WhatsApp)
     texte: str
@@ -32,6 +33,7 @@ class Message:
 
 
 class Canal(Protocol):
+    """Ce qu'un canal fournit à la passerelle : un nom et une méthode d'envoi."""
     nom: str
 
     async def envoyer(self, utilisateur: str, texte: str) -> None: ...
@@ -43,6 +45,8 @@ def _chiffres(numero: str) -> str:
 
 
 class Passerelle:
+    """Relie les canaux ({nom: canal}) à l'assistant."""
+
     def __init__(self, assistant: Assistant, canaux: dict[str, Canal]):
         self.assistant = assistant
         self.canaux = canaux
@@ -60,6 +64,7 @@ class Passerelle:
 
     # ------------------------------------------------------------ identification
     def identifier(self, msg: Message) -> Optional[str]:
+        """Le client de l'expéditeur : identité connue, numéro WhatsApp d'un client, sinon CLIENT_PAR_DEFAUT (formation)."""
         cle = (msg.canal, msg.utilisateur)
         if cle in self.identites:
             return self.identites[cle]
@@ -74,6 +79,7 @@ class Passerelle:
         return f"{msg.canal}:{msg.utilisateur}:{self.sessions[(msg.canal, msg.utilisateur)]}"
 
     def _limite(self, utilisateur: str) -> bool:
+        """True si l'utilisateur a déjà envoyé MAX_MSG_PER_HOUR messages dans l'heure."""
         maintenant = time.time()
         self._usage[utilisateur] = [t for t in self._usage[utilisateur] if maintenant - t < 3600]
         if len(self._usage[utilisateur]) >= self.max_par_heure:
@@ -83,6 +89,7 @@ class Passerelle:
 
     # ------------------------------------------------------------ traitement d'un message
     async def traiter(self, msg: Message) -> None:
+        """Traite un message entrant et envoie la réponse dans son canal."""
         if msg.id:
             if msg.id in self._vus:                                # le canal peut renvoyer un même message
                 return
@@ -120,6 +127,7 @@ class Passerelle:
             await canal.envoyer(msg.utilisateur, rep.texte)
 
     def _commande(self, msg: Message, nom: str, argument: str) -> str:
+        """Commandes /start, /reset et /client : renvoie le texte à envoyer."""
         if nom == "start":
             return "Bonjour ! " + AIDE_IDENTIFICATION if self.identifier(msg) is None else "Bonjour ! Posez votre question."
         if nom == "reset":
@@ -139,6 +147,7 @@ class Passerelle:
 
     # ------------------------------------------------------------ côté conseiller
     def en_attente(self) -> list[dict]:
+        """Les dossiers en attente de la décision d'un conseiller."""
         return list(self.validations.values())
 
     async def decide(self, session: str, approuve: bool, conseiller: str, motif: str = "") -> str:

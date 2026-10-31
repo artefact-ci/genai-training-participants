@@ -15,6 +15,7 @@ _index = None
 
 
 def _build():
+    """Charge, nettoie, découpe et indexe le corpus (index réutilisé s'il existe déjà dans Weaviate)."""
     documents = rag.load_corpus()
     for d in documents:
         if d["fichier"].endswith(".pdf") and not d["avertissement"]:       # l'en-tête répété de chaque page (pas dans la transcription du scan)

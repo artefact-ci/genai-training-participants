@@ -10,14 +10,14 @@ from dotenv import load_dotenv
 
 def prepare(embedding: bool = False, rerank: bool = False) -> None:
     """Charge `.env`, puis teste le modèle de chat, et si demandé le modèle d'embedding et le reranker. Échoue avec un message clair."""
-    logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
+    logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)                 # moins de bruit dans les sorties des notebooks
     litellm.suppress_debug_info = True
     warnings.filterwarnings("ignore", message="IProgress not found")
     for dossier in [Path.cwd(), *Path.cwd().parents]:
         if (dossier / ".env").exists():
             load_dotenv(dossier / ".env")
             break
-    litellm.drop_params = True
+    litellm.drop_params = True                                              # ignore les paramètres qu'un fournisseur ne connaît pas
     requises = ["LLM_API_KEY", "MODELE"] + (["MODELE_EMBEDDING"] if embedding else []) + (["MODELE_RERANK", "RERANK_API_KEY"] if rerank else [])
     manquantes = [v for v in requises if not os.getenv(v)]
     if manquantes:

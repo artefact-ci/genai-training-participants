@@ -55,6 +55,7 @@ class MCPConnection:
         return resultat
 
     def _call_tool(self, nom: str):
+        """La fonction qui transmet l'appel au serveur ; une erreur revient au modèle sous forme de texte."""
         async def appel(**arguments) -> str:
             r = await self.client.call_tool(nom, arguments, raise_on_error=False)
             if r.is_error:

@@ -1,15 +1,14 @@
-"""Outils de l'agent Lagune Banque : solution du TP1 du module 3, réutilisée par les TP suivants.
+"""Outils de l'agent Lagune Banque, repris du TP1 du module 3 : accès à la base, outils du modèle, prompt système.
 
-Généré à partir de 03_agents/tp1_agent_tools/tp1_agent_tools.ipynb (version complétée). Ne pas modifier à la main.
+Les fonctions `_xxx` lisent ou modifient la base. Les outils `@tool` les exposent au modèle : le client vient de
+l'application (`Context`), jamais d'un argument rempli par le modèle.
 """
 import json
 import os
-import re
 import shutil
 import sqlite3
 import sys
 import tempfile
-import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -17,13 +16,12 @@ from typing import Optional
 
 import pandas as pd
 
-DATA = next(p / "data" for p in Path(__file__).resolve().parents if (p / "data" / "banque.db").exists())   # data : l'unique dossier de données
+DATA = next(p / "data" for p in Path(__file__).resolve().parents if (p / "data" / "banque.db").exists())   # le dossier data/ du dépôt
 sys.path.insert(0, str(next(p / "code_partage" for p in Path(__file__).resolve().parents if (p / "code_partage" / "recherche_docs.py").exists())))
-from recherche_docs import find_docs  # noqa: E402
+from recherche_docs import find_docs  # noqa: E402  (recherche dans la documentation, code_partage/)
 
-AUJOURDHUI = "2026-11-16"
-HIER = "2026-11-15"
-BASE = str(Path(tempfile.gettempdir()) / "lagune_banque_tp.db")   # copie de travail
+AUJOURDHUI = "2026-11-16"                                         # date de référence des données
+BASE = str(Path(tempfile.gettempdir()) / "lagune_banque_tp.db")   # copie de travail de data/banque.db
 
 
 def reset_db():
@@ -32,24 +30,30 @@ def reset_db():
 
 
 def sql(requete, params=()):
+    """Exécute une requête sur la copie de travail et renvoie un DataFrame."""
     with sqlite3.connect(BASE) as con:
         return pd.read_sql_query(requete, con, params=params)
 
 
-reset_db()
+reset_db()   # chaque import repart de la base d'origine
+
 
 @dataclass
 class Context:
+    """Ce que l'application transmet aux outils, hors de portée du modèle."""
     client_id: str                     # rempli par l'application après identification
     validateur: Optional[str] = None   # rempli seulement quand un conseiller valide (ex. "CONS-01")
 
 
 def connect():
+    """Connexion à la copie de travail ; les colonnes se lisent par leur nom."""
     con = sqlite3.connect(BASE)
     con.row_factory = sqlite3.Row
     return con
 
+
 def _get_customer_loans(client_id):
+    """Prêts du client, du plus ancien au plus récent."""
     with connect() as con:
         return {"prets": [dict(r) for r in con.execute(
             "SELECT pret_id, produit, montant, frais_service, date_octroi, duree_jours, statut, solde_restant, suspension "
@@ -57,6 +61,7 @@ def _get_customer_loans(client_id):
 
 
 def _get_schedule(client_id, pret_id=None):
+    """Échéanciers des prêts en cours ou impayés du client (un seul prêt si `pret_id` est donné)."""
     with connect() as con:
         prets = con.execute("SELECT * FROM prets WHERE client_id = ? AND statut IN ('en_cours', 'impaye') "
                             "AND (? IS NULL OR pret_id = ?)", (client_id, pret_id, pret_id)).fetchall()
@@ -74,6 +79,7 @@ def _search_docs(requete, date_reference=None, k=3):
     """Recherche dans l'index RAG du module 2, limitée aux documents en vigueur à date_reference."""
     date_reference = date_reference or AUJOURDHUI
     return {"date_reference": date_reference, "resultats": find_docs(requete, date_reference, k)}
+
 
 def _check_lm_transaction(client_id, date, montant=None):
     """Remboursements Lagune Money du client entre la veille et le surlendemain de `date` (AAAA-MM-JJ)."""
@@ -95,8 +101,10 @@ def _check_platform_incident(date_heure):
     return {"date_heure": date_heure, "incidents_a_cette_heure": [dict(r) for r in couvrants],
             "incidents_du_jour": [dict(r) for r in meme_jour]}
 
+
 def _create_claim(client_id, parcours, resume, demande_client, elements_verifies, urgence,
                   pret_id=None, echeance_id=None, transaction_id=None, incident_id=None):
+    """Enregistre une réclamation (traitement sous 72 heures) et renvoie sa référence et le dossier."""
     dossier = {"schema_version": "1.0", "client_id": client_id, "parcours": parcours, "resume": resume,
                "demande_client": demande_client, "elements_verifies": elements_verifies, "pret_id": pret_id,
                "echeance_id": echeance_id, "transaction_id": transaction_id, "incident_id": incident_id,
@@ -111,6 +119,7 @@ def _create_claim(client_id, parcours, resume, demande_client, elements_verifies
 
 
 def _propose_regularisation(client_id, validateur, echeance_id, transaction_id, incident_id, justification):
+    """Sans validateur, ne modifie rien. Avec validateur : contrôle la transaction et l'échéance, puis régularise."""
     if not validateur:
         return {"statut": "en_attente_validation",
                 "message": "Action à incidence financière : validation par un conseiller obligatoire. Aucune modification effectuée."}
@@ -150,6 +159,8 @@ def _propose_regularisation(client_id, validateur, echeance_id, transaction_id, 
     return {"statut": "validee", "regularisation_id": reg, "transaction_id": transaction_id, "echeance_id": echeance_id,
             "frais_annules": ech["frais_retard"], "validateur": validateur}
 
+
+# Les outils du modèle : leur docstring est la description que lit le modèle.
 from langchain.tools import ToolRuntime, tool
 
 
@@ -217,6 +228,7 @@ def propose_regularisation(echeance_id: str, transaction_id: str, justification:
 TOOLS = [search_docs, get_customer_loans, get_schedule, check_lm_transaction, check_platform_incident, create_claim,
           propose_regularisation]
 
+# Le prompt de l'agent (parcours P2 et P3 de coeur.py).
 SYSTEM_PROMPT = f"""Tu es l'assistant automatisé du service client de Lagune Banque. Tu es un programme, tu ne te présentes jamais comme une personne.
 Nous sommes le {AUJOURDHUI}. Tu réponds en français, en phrases courtes et simples, avec assurance : tu parles au nom de Lagune Banque.
 Tu ne dis jamais « d'après les documents » et tu n'écris aucune référence de document (DOC-xx). Montants en FCFA avec séparateur
@@ -246,38 +258,12 @@ Cas particulier, un remboursement non pris en compte :
 4. si elle a échoué : explique qu'aucun paiement n'a été reçu et comment rembourser ; aucune régularisation n'est possible ;
 5. si elle est introuvable : crée une réclamation avec un dossier complet et annonce le délai de 72 heures."""
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
 
 def new_model():
-    """Le modèle de .env, via LiteLLM (même configuration que les autres TP)."""
+    """Le modèle défini dans .env (MODELE, LLM_API_KEY), via LiteLLM, à température 0."""
     from langchain_litellm import ChatLiteLLM
     return ChatLiteLLM(model=os.getenv("MODELE"), api_key=os.getenv("LLM_API_KEY"), temperature=0)
 
 
-def print_trace(resultat):
-    """Affiche les appels d'outils et la réponse du dernier tour."""
-    msgs = resultat["messages"]
-    debut = max(i for i, m in enumerate(msgs) if isinstance(m, HumanMessage))
-    for m in msgs[debut:]:
-        if isinstance(m, HumanMessage):
-            print(f"CLIENT    : {m.content}")
-        elif isinstance(m, AIMessage) and m.tool_calls:
-            for tc in m.tool_calls:
-                print(f"  → {tc['name']}({json.dumps(tc['args'], ensure_ascii=False)[:150]})")
-        elif isinstance(m, ToolMessage):
-            print(f"  ← {m.name} : {str(m.content)[:160]}")
-        elif isinstance(m, AIMessage):
-            print(f"ASSISTANT : {m.content}")
-    if resultat.get("__interrupt__"):
-        print("⏸  EN ATTENTE DE VALIDATION HUMAINE")
-
-
-def tools_called(resultat):
-    """Outils appelés pendant le dernier tour."""
-    msgs = resultat["messages"]
-    debut = max(i for i, m in enumerate(msgs) if isinstance(m, HumanMessage))
-    return [tc["name"] for m in msgs[debut:] if isinstance(m, AIMessage) for tc in m.tool_calls]
-
-
+# Le cas fil rouge : un remboursement réussi mais non rattaché à son échéance.
 KOUASSI = "J'ai remboursé mon prêt hier via Lagune Money, mais mon dossier indique toujours un impayé."

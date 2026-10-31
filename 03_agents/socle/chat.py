@@ -1,4 +1,4 @@
-"""Branche un agent LangChain sur l'interface Gradio de code_partage/front.py : un bloc par tool appelé."""
+"""Interface de chat Gradio (code_partage/front.py) autour d'un agent ou d'un graphe : un bloc par tool appelé."""
 import time
 
 import gradio as gr
@@ -8,11 +8,13 @@ import front
 from base import KOUASSI, Context
 from observabilite import clear_langfuse, langfuse_callbacks
 
-CLIENTS = ["CLI-0002", "CLI-0001", "CLI-0003", "CLI-0004"]
+CLIENTS = ["CLI-0002", "CLI-0001", "CLI-0003", "CLI-0004"]  # clients proposés dans la liste déroulante
 
 
 def respond(agent, tag: str = "m3", name: str = "m3-front-agent", thread: bool = False):
-    """Fonction de réponse du chat. Avec `thread=True`, l'agent garde l'historique (checkpointer) : seul le dernier message est envoyé."""
+    """Fonction de réponse du chat. Sans `thread`, tout l'historique est renvoyé à chaque message ; avec `thread=True`,
+    l'agent garde l'historique dans son checkpointer et ne reçoit que le dernier message. `tag` et `name` étiquettent
+    les traces Langfuse."""
     def fn(message, historique, client_id, request: gr.Request):
         session = f"front-{request.session_hash[:8]}"
         messages = [{"role": "user", "content": message}]
@@ -42,7 +44,7 @@ def respond(agent, tag: str = "m3", name: str = "m3-front-agent", thread: bool =
 
 
 def create(agent, titre: str = "Assistant Lagune Banque : l'agent au travail", **options):
-    """L'interface complète autour de `agent`. `options` : voir `respond`."""
+    """Crée l'interface autour de `agent`, à lancer avec `front.launch`. `options` : voir `respond`."""
     return front.create(
         respond(agent, **options),
         titre=titre,

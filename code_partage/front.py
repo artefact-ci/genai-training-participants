@@ -1,10 +1,8 @@
-"""Interface de chat Gradio du fil rouge « chat with your data », commune aux démos des modules 2, 3 et 4.
+"""Interface de chat Gradio commune aux démos et TP des modules 2, 3 et 4.
 
-Les participants n'écrivent pas de front : ils écrivent une fonction `answer(message, historique)` et la branchent avec `create`.
+Vous n'écrivez pas l'interface : vous écrivez une fonction `answer(message, historique)` et la branchez avec `create`.
 La fonction peut renvoyer (ou produire avec `yield`) une liste de messages : des blocs repliables (chunks utilisés, tools appelés)
 suivis de la réponse.
-
-Gradio 6 : le thème et le CSS se passent au lancement, pas à la création de l'interface (voir `launch`).
 """
 import json
 import re
@@ -13,6 +11,7 @@ from typing import Callable, Optional
 
 import gradio as gr
 
+# apparence de l'interface, appliquée au lancement (voir `launch`)
 THEME = gr.themes.Base(primary_hue="teal", neutral_hue="slate", radius_size="lg",
                        font=[gr.themes.GoogleFont("IBM Plex Sans"), "system-ui", "sans-serif"])
 CSS = ".gradio-container {max-width: 980px !important; margin: 0 auto !important}"

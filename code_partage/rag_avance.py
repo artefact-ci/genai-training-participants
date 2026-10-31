@@ -1,6 +1,6 @@
-"""Capacités avancées du RAG, versions de référence : réécriture, multi-requête, HyDE, BM25, fusion RRF et mesure.
+"""RAG avancé : réécriture de la question, variantes, HyDE, BM25, mesure de la recherche, sortie structurée et réponse sourcée.
 
-Les démos et TP du module 2 construisent ces fonctions pas à pas. L'assemblage final et le TP de mesure les réutilisent.
+Versions de référence de fonctions construites dans les démos et TP du module 2, réutilisées par les notebooks suivants.
 """
 import json
 import math
@@ -15,18 +15,21 @@ import litellm
 import rag
 from pydantic import BaseModel
 
-APPELS = {"llm": 0}
+APPELS = {"llm": 0}                       # nombre d'appels au modèle, pour comparer le coût des méthodes
 
 
 def normalize(texte: str) -> str:
+    """Le texte sans différences de casse ni d'espaces, pour comparer deux extraits."""
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", texte)).casefold()
 
 
 def _strip_accents(texte: str) -> str:
+    """Le texte en minuscules et sans accents (pour BM25)."""
     return "".join(c for c in unicodedata.normalize("NFD", texte.casefold()) if unicodedata.category(c) != "Mn")
 
 
 def _llm(prompt: str) -> str:
+    """Réponse du modèle (MODELE) via LiteLLM ; l'appel est compté dans APPELS."""
     APPELS["llm"] += 1
     r = litellm.completion(model=os.environ["MODELE"], api_key=os.environ["LLM_API_KEY"], temperature=0, max_tokens=300, num_retries=4,
                            messages=[{"role": "user", "content": prompt}])
@@ -74,6 +77,7 @@ class BM25:
         return re.findall(r"\w+", _strip_accents(texte))
 
     def search(self, question: str, n: int = 10) -> list[dict]:
+        """Les `n` chunks au meilleur score, sans ceux qui ne partagent aucun mot avec la question."""
         scores = []
         for i, mots in enumerate(self.mots):
             score = 0.0
@@ -124,6 +128,7 @@ def structured(prompt: str, schema):
         return None
 
 
+# Schéma de la réponse sourcée (TP3)
 class Citation(BaseModel):
     source: str
     extrait: str
@@ -134,6 +139,7 @@ class SourcedAnswer(BaseModel):
     citations: list[Citation]
 
 
+# Prompt par défaut de `answer_with_sources` : un notebook peut passer le sien.
 PROMPT_SOURCES = """Tu es l'assistant du service client de Lagune Banque.
 Réponds UNIQUEMENT à partir des chunks fournis, en 2 à 4 phrases. N'invente aucun chiffre, délai ou condition.
 Si l'information n'y figure pas, mets "reponse" à "REFUS" et laisse "citations" vide.
@@ -153,13 +159,13 @@ def verify_citations(citations: list[dict], chunks: list[dict]) -> list[dict]:
             if any(p["meta"]["source"] == c.get("source") and normalize(c.get("extrait", "")) in normalize(p["texte"]) for p in chunks)]
 
 
-def answer_with_sources(question: str, chunks: list[dict], seuil: float = 0.64) -> dict:
+def answer_with_sources(question: str, chunks: list[dict], seuil: float = 0.64, prompt: str = PROMPT_SOURCES) -> dict:
     """Réponse sous contrôle : refus si le meilleur score de reranker est sous `seuil`, sinon réponse structurée dont les citations sont vérifiées.
-    Une réponse sans aucune citation vérifiée est un refus."""
+    Une réponse sans aucune citation vérifiée est un refus. `prompt` contient `{chunks}` et `{question}`."""
     refus = {"reponse": rag.REFUS, "refus": True, "citations": [], "chunks": chunks}
     if not chunks or chunks[0]["score"] < seuil:
         return refus
-    sortie = structured(PROMPT_SOURCES.format(chunks=rag.format_chunks(chunks), question=question), SourcedAnswer)
+    sortie = structured(prompt.format(chunks=rag.format_chunks(chunks), question=question), SourcedAnswer)
     citations = verify_citations([c.model_dump() for c in sortie.citations], chunks) if sortie else []
     if not sortie or sortie.reponse.strip() == "REFUS" or not citations:
         return refus

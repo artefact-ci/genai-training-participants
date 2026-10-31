@@ -22,7 +22,7 @@ Dans `socle/`, importé par tous les notebooks à partir du TP2 (le TP1 en repre
 | `tracing.py` | collecte locale des appels (tool, arguments, résultat, durée, tokens) |
 | `chat.py` | branche un agent sur l'interface Gradio de `code_partage/front.py` |
 
-`tools.py` contient la solution du TP1 : ne l'ouvrez qu'après ce TP.
+`tools.py` reprend les tools et le prompt système du TP1 : les TP suivants s'appuient dessus.
 
 ## Les sept tools
 

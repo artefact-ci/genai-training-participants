@@ -1,11 +1,7 @@
-"""Briques du RAG : charger, nettoyer, découper, calculer les embeddings, rechercher, générer.
+"""Briques du RAG : charger, nettoyer, découper, calculer les embeddings, rechercher, reclasser, générer.
 
-Le module 2 les utilise dans ses TP ; les modules 3, 4 et 5 s'en servent pour `search_docs` (voir `recherche_docs.py`).
-
-Ce fichier contient les fonctions de base. Les notebooks font écrire le reste : l'index, la fonction de réponse
-(citation des sources, refus hors corpus) et l'évaluation.
-
-Les modèles sont appelés via LiteLLM : changez de fournisseur en modifiant MODELE et MODELE_EMBEDDING dans .env.
+Utilisé par les TP du module 2, et par `recherche_docs.py` pour l'outil `search_docs` des modules 3, 4 et 5.
+Les modèles sont appelés via LiteLLM : pour changer de fournisseur, modifiez MODELE et MODELE_EMBEDDING dans .env.
 Inspiré du TP de chunking de souleymanecoulibaly-stack (branche tp-rag-lagune-bank).
 """
 import json
@@ -17,17 +13,18 @@ from typing import Optional
 
 
 def _data_dir() -> Path:
-    """`data/` : un seul dossier de données pour toute la formation (corpus/ et banque.db)."""
+    """Le dossier `data/` de la formation (corpus/ et banque.db)."""
     return next(p / "data" for p in Path(__file__).resolve().parents if (p / "data" / "corpus" / "manifest.json").exists())
 
 
 DATA = _data_dir()
 CORPUS = DATA / "corpus"
-AUJOURDHUI = "2026-11-16"
+AUJOURDHUI = "2026-11-16"                                                  # date de référence des TP
 REFUS = "Je ne trouve pas cette information dans la documentation fournie."
 
 
 # ------------------------------------------------------------------ chargement
+# Lecture d'un fichier selon son format : une liste de (numéro de page, texte).
 def _read_pdf(chemin):
     from pypdf import PdfReader
     return [(i + 1, p.extract_text() or "") for i, p in enumerate(PdfReader(chemin).pages)]
@@ -55,10 +52,9 @@ def _read_docx(chemin):
 
 
 def load_corpus(dossier: Path = CORPUS) -> list[dict]:
-    """Les documents du manifeste, un dict par document : métadonnées + `pages` [(numéro, texte)] + `avertissement`.
+    """Les documents du manifeste, un dict par document : métadonnées, `pages` [(numéro, texte)] et `avertissement`.
 
-    Une note scannée n'a pas de texte à extraire : sans OCR, le document serait invisible pour le RAG. On utilise alors
-    le fichier `<nom>.ocr.txt` (transcription), et on le signale."""
+    Une note scannée n'a pas de texte à extraire : on utilise alors sa transcription `<nom>.ocr.txt`, et on le signale."""
     documents = []
     for m in json.loads((Path(dossier) / "manifest.json").read_text(encoding="utf-8")):
         chemin = Path(dossier) / m["fichier"]
@@ -82,8 +78,8 @@ def strip_headers(pages: list[tuple[int, str]], nb_lignes: int = 3) -> list[tupl
 
 # ------------------------------------------------------------------ chunking
 def split_documents(documents: list[dict], taille: int, recouvrement: int, nom: str = "") -> list[dict]:
-    """Un dict par chunk : id, texte et métadonnées (source, titre, version, dates, page). Le même splitter pour toutes
-    les tailles : un seul paramètre varie, ce qui rend la comparaison interprétable."""
+    """Un dict par chunk : id, texte et métadonnées (source, titre, version, dates, page).
+    Le même découpage récursif pour toutes les tailles : seuls `taille` et `recouvrement` varient d'un essai à l'autre."""
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     coupeur = RecursiveCharacterTextSplitter(chunk_size=taille, chunk_overlap=recouvrement, separators=["\n\n", "\n", ". ", " ", ""])
     chunks = []
@@ -98,13 +94,14 @@ def split_documents(documents: list[dict], taille: int, recouvrement: int, nom: 
 
 # ------------------------------------------------------------------ embeddings
 def _require(*variables: str) -> None:
+    """Échoue avec un message clair si une variable manque dans .env."""
     manquantes = [v for v in variables if not os.getenv(v)]
     if manquantes:
         raise RuntimeError(f"Variable(s) manquante(s) dans .env : {', '.join(manquantes)}.")
 
 
 def embeddings(textes: list[str]) -> list[list[float]]:
-    """Un vecteur par texte, calculé par le modèle d'embedding (MODELE_EMBEDDING) via LiteLLM."""
+    """Un vecteur par texte, calculé par le modèle d'embedding (MODELE_EMBEDDING) via LiteLLM, par lots de 64."""
     _require("MODELE_EMBEDDING", "LLM_API_KEY")
     import litellm
     sortie = []
@@ -126,7 +123,7 @@ def index_chunks(client, nom: str, chunks: list[dict], reutiliser: bool = False)
 
 # ------------------------------------------------------------------ recherche
 def is_in_force(meta: dict, date: str) -> bool:
-    """Le chunk vient-il d'un document en vigueur à cette date ? (dates ISO : la comparaison de texte suffit)"""
+    """Le chunk vient-il d'un document en vigueur à cette date ? Dates au format AAAA-MM-JJ : la comparaison de texte suffit."""
     return meta["date_effet"] <= date and (not meta["date_fin"] or date <= meta["date_fin"])
 
 
@@ -159,7 +156,7 @@ def rerank(question: str, chunks: list[dict], n: int = 5) -> list[dict]:
         return []
     import litellm
     parametres = {"api_base": os.environ["RERANK_API_BASE"]} if os.getenv("RERANK_API_BASE") else {}
-    for tentative in range(8):
+    for tentative in range(8):                                              # limite de débit : on réessaie, avec une attente croissante
         try:
             r = litellm.rerank(model=os.environ["MODELE_RERANK"], query=question, documents=[p["texte"] for p in chunks], top_n=n,
                                api_key=os.environ["RERANK_API_KEY"], **parametres)
@@ -172,6 +169,7 @@ def rerank(question: str, chunks: list[dict], n: int = 5) -> list[dict]:
 
 
 # ------------------------------------------------------------------ génération
+# Prompt de réponse par défaut de `build_prompt` : un notebook peut passer le sien.
 PROMPT_RAG = """Tu es l'assistant du service client de Lagune Banque.
 
 # Règle 1 - Périmètre strict
@@ -196,11 +194,13 @@ Réponds en 2 à 4 phrases maximum, style professionnel et direct.
 
 
 def format_chunks(chunks: list[dict]) -> str:
+    """Les chunks mis bout à bout pour le prompt, chacun précédé de sa source et de sa version."""
     return "\n\n".join(f"[{p['meta']['source']} · version {p['meta']['version']}]\n{p['texte']}" for p in chunks)
 
 
-def build_prompt(question: str, chunks: list[dict]) -> str:
-    return PROMPT_RAG.format(chunks=format_chunks(chunks), question=question)
+def build_prompt(question: str, chunks: list[dict], prompt: str = PROMPT_RAG) -> str:
+    """`prompt` rempli avec les chunks et la question (il contient `{chunks}` et `{question}`)."""
+    return prompt.format(chunks=format_chunks(chunks), question=question)
 
 
 def generate(prompt: str) -> str:

@@ -13,13 +13,14 @@ from typing import Optional
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from garde_fous import mask_data  # noqa: F401  (importe aussi le chemin de code_partage)
+import garde_fous  # noqa: F401  (ajoute code_partage au chemin d'import)
+from observabilite import clear_langfuse, langfuse_callbacks, langfuse_enabled, pseudonym  # noqa: E402,F401  (traces Langfuse, optionnelles)
 
 JOURNAL = Path(os.getenv("SUIVI_JOURNAL") or Path(tempfile.gettempdir()) / "lagune_suivi.jsonl")
 
 
 class Tracker(BaseCallbackHandler):
-    """À passer dans `config={"callbacks": [suivi]}` : compte les appels, les tokens et les outils d'un tour."""
+    """Rappel LangChain (`config={"callbacks": [tracker]}`) : compte les appels au modèle, les tokens et les outils d'un tour."""
 
     def __init__(self):
         self.debut = time.time()
@@ -39,6 +40,7 @@ class Tracker(BaseCallbackHandler):
         self.outils.append((serialized or {}).get("name") or kw.get("name") or "?")
 
     def bilan(self) -> dict:
+        """Indicateurs du tour : latence, appels au modèle, tokens, outils."""
         return {"latence_s": round(time.time() - self.debut, 2), "appels_modele": self.appels_modele,
                 "tokens_entree": self.tokens_entree, "tokens_sortie": self.tokens_sortie, "outils": list(self.outils)}
 
@@ -55,6 +57,7 @@ def log_event(evenement: dict) -> None:
 
 
 def read_log() -> list[dict]:
+    """Relit le journal : une entrée par tour."""
     if not JOURNAL.exists():
         return []
     return [json.loads(ligne) for ligne in JOURNAL.read_text(encoding="utf-8").splitlines() if ligne.strip()]
@@ -77,11 +80,8 @@ class Metrics:
         self.latences.append(bilan.get("latence_s", 0))
 
     def summary(self) -> dict:
+        """Les compteurs, la latence moyenne et les taux de transfert et de résolution sans humain."""
         tours = self.c["tours"] or 1
         return {**self.c, "latence_moyenne_s": round(sum(self.latences) / max(len(self.latences), 1), 2),
                 "taux_transfert": round(self.c["transferts"] / tours, 3),
                 "taux_resolution_sans_humain": round(1 - self.c["transferts"] / tours, 3)}
-
-
-# ------------------------------------------------------------------ Langfuse Cloud (optionnel), module partagé
-from observabilite import langfuse_enabled, pseudonym, langfuse_callbacks, clear_langfuse  # noqa: E402,F401

@@ -3,7 +3,7 @@
 La clé est l'identifiant de l'expéditeur sur le canal : le numéro de téléphone WhatsApp. L'historique
 survit donc au redémarrage du service, et l'assistant garde le fil d'une conversation d'un jour à l'autre.
 
-Quand la conversation devient trop longue, les anciens messages sont résumés (`compacter`) : le résumé et les derniers
+Quand la conversation devient trop longue, les anciens messages sont résumés (`compact`) : le résumé et les derniers
 messages restent seuls dans le contexte envoyé au modèle.
 """
 import sqlite3
@@ -12,6 +12,8 @@ from typing import Callable
 
 
 class History:
+    """Messages et résumés des conversations, rangés par clé (l'expéditeur)."""
+
     def __init__(self, chemin: str = ":memory:"):
         """`chemin` : fichier SQLite (créé au besoin). Par défaut, une base en mémoire : l'historique ne survit pas au processus."""
         self._con = sqlite3.connect(chemin, check_same_thread=False)
@@ -33,6 +35,7 @@ class History:
             return self._con.execute("SELECT role, contenu FROM messages WHERE cle = ? ORDER BY id", (cle,)).fetchall()
 
     def summary(self, cle: str) -> str:
+        """Le résumé des anciens messages, ou une chaîne vide."""
         with self._verrou:
             ligne = self._con.execute("SELECT texte FROM resumes WHERE cle = ?", (cle,)).fetchone()
         return ligne[0] if ligne else ""

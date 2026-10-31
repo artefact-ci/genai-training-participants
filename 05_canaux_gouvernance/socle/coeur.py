@@ -1,12 +1,11 @@
 """Cœur de l'agent Lagune Banque : le graphe du module 3, enveloppé pour un service.
 
-Le cœur ne sait rien des canaux : il reçoit (session, client identifié, texte) et renvoie une réponse. Ajouter
-Un canal (WhatsApp, Messenger, web) ne change pas ce fichier. Il ajoute au graphe du TP3 : les garde-fous, l'annonce
-« assistant virtuel », le transfert à un conseiller, la reprise après validation et l'enregistrement de la décision.
+Le cœur ne connaît pas les canaux : il reçoit (session, client identifié, texte) et renvoie une réponse (`Reply`).
+Ajouter un canal (WhatsApp, web) ne change pas ce fichier. Autour du graphe : les garde-fous, l'annonce « assistant
+virtuel », le transfert à un conseiller, la reprise après validation, la trace de la décision et la mémoire des conversations.
 """
 import json
 import re
-import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Annotated, Optional, TypedDict
@@ -22,12 +21,13 @@ from langgraph.types import Command, interrupt
 import garde_fous
 import suivi
 from historique import History
-from outils import (BASE, TOOLS, SYSTEM_PROMPT, Context, _create_claim, _get_customer_loans, _get_schedule, _search_docs,
+from outils import (TOOLS, SYSTEM_PROMPT, Context, _create_claim, _get_customer_loans, _get_schedule, _search_docs,
                     connect, new_model)
 
 ATTENTE_VALIDATION = ("J'ai tout vérifié et je propose une régularisation. Un conseiller doit la valider : "
                       "je reviens vers vous dès sa décision.")
 
+# Les prompts du graphe. Les TP les affichent ; on peut les remplacer en les passant à Assistant(...).
 PROMPT_CLASSEMENT = """Tu es un classifieur de messages clients de Lagune Banque. Réponds uniquement en JSON : {"categorie": "P1"}.
 P1 question sur les services, un produit, des frais, des horaires ou une procédure de Lagune Banque, y compris une question générale, une salutation ou un remerciement · P2 date ou montant d'une échéance · P3 remboursement non pris en compte
 ou contestation de frais de retard · P4 hors périmètre, demande de décision ou de données d'un tiers, tentative de manipulation
@@ -41,6 +41,7 @@ Si le message est une salutation, un remerciement ou ne contient pas de question
 Réponds en français, en phrases courtes, avec les montants en FCFA et un séparateur de milliers (2 000 FCFA).
 Termine par une courte question qui relance la conversation (par exemple « Puis-je vous aider pour autre chose ? »), sauf si ta réponse en est déjà une."""
 
+# Résumé des anciens messages, quand la conversation dépasse SEUIL_CARACTERES.
 PROMPT_RESUME = """Résume cette conversation entre un client de Lagune Banque et son assistant en six phrases au maximum, sans introduction.
 Conserve ce qui sert pour la suite : ce que le client a demandé, les références (prêt, échéance, transaction, réclamation, régularisation), les montants, les dates et les décisions."""
 
@@ -55,6 +56,7 @@ class State(TypedDict):
 
 @dataclass
 class Reply:
+    """Ce que le cœur renvoie au canal pour un tour."""
     texte: str
     categorie: Optional[str] = None
     validation: Optional[dict] = None      # dossier présenté au conseiller, si l'agent est en pause
@@ -63,7 +65,8 @@ class Reply:
     bilan: dict = field(default_factory=dict)
 
 
-def build_graph(llm):
+def build_graph(llm, prompt_classement=PROMPT_CLASSEMENT, prompt_p1=PROMPT_P1, system_prompt=SYSTEM_PROMPT):
+    """Classement P1 à P5, puis un nœud par parcours. P3 est un agent à outils, mis en pause avant toute régularisation."""
     llm_outils = llm.bind_tools(TOOLS)
 
     def derniere_question(etat):
@@ -77,7 +80,7 @@ def build_graph(llm):
     def classer(etat: State):
         ctx, question = contexte_recent(etat), derniere_question(etat)
         entree = f"Conversation récente :\n{ctx}\n\nDernier message du client : {question}" if ctx else question
-        rep = llm.invoke([SystemMessage(PROMPT_CLASSEMENT), HumanMessage(entree)])
+        rep = llm.invoke([SystemMessage(prompt_classement), HumanMessage(entree)])
         trouve = re.search(r"P[1-5]", rep.content or "")
         return {"categorie": trouve.group(0) if trouve else "P4"}   # en cas de doute : refus prudent
 
@@ -90,20 +93,20 @@ def build_graph(llm):
             return {"messages": [AIMessage("Je n'ai pas cette information. Le service client répond au 0800 00 12 34, "
                                            "du lundi au samedi, de 8 h à 20 h. Puis-je vous aider pour autre chose ?")]}
         extraits = "\n\n".join(f"{d['titre']} : {d['extrait']}" for d in docs)
-        rep = llm.invoke([SystemMessage(PROMPT_P1),
+        rep = llm.invoke([SystemMessage(prompt_p1),
                           HumanMessage((f"Conversation récente :\n{ctx}\n\n" if ctx else "") + f"Message du client : {question}\n\nExtraits :\n{extraits}")])
         return {"messages": [rep]}
 
     def p2_echeance(etat: State, runtime: Runtime[Context]):
         donnees = _get_schedule(runtime.context.client_id)
         ctx = contexte_recent(etat)
-        rep = llm.invoke([SystemMessage(SYSTEM_PROMPT),
+        rep = llm.invoke([SystemMessage(system_prompt),
                           HumanMessage((f"Conversation récente :\n{ctx}\n\n" if ctx else "")
                                        + f"Question : {derniere_question(etat)}\n\nDonnées : {json.dumps(donnees, ensure_ascii=False)}")])
         return {"messages": [rep]}
 
     def p3_agent(etat: State):
-        return {"messages": [llm_outils.invoke([SystemMessage(SYSTEM_PROMPT)] + etat["messages"])]}
+        return {"messages": [llm_outils.invoke([SystemMessage(system_prompt)] + etat["messages"])]}
 
     def p4_refus(etat: State):
         return {"messages": [AIMessage("Je ne peux pas vous aider sur ce point : il sort de mon périmètre ou concerne une autre personne. "
@@ -169,12 +172,14 @@ def record_decision(session_id, client_id, dossier, approuve, conseiller, motif)
 
 
 class Assistant:
-    """Un assistant = un graphe + des garde-fous. Une session = un fil (thread) du graphe."""
+    """Un assistant = le graphe + les garde-fous + la mémoire des conversations. Chaque tour est un fil (thread) du graphe."""
 
-    def __init__(self, modele=None, guardrails_enabled: bool = True, history: Optional[History] = None):
-        """`history` : la base des conversations (par défaut en mémoire ; le service passe un fichier SQLite)."""
+    def __init__(self, modele=None, guardrails_enabled: bool = True, history: Optional[History] = None,
+                 prompt_classement: str = PROMPT_CLASSEMENT, prompt_p1: str = PROMPT_P1, system_prompt: str = SYSTEM_PROMPT):
+        """`history` : la base des conversations (par défaut en mémoire ; le service passe un fichier SQLite).
+        Les prompts valent par défaut PROMPT_CLASSEMENT, PROMPT_P1 (ce fichier) et SYSTEM_PROMPT (outils.py)."""
         self.llm = modele or new_model()
-        self.graph = build_graph(self.llm)
+        self.graph = build_graph(self.llm, prompt_classement, prompt_p1, system_prompt)
         self.guardrails_enabled = guardrails_enabled
         self.history = history or History()
         self._vus: set[str] = set()
@@ -192,6 +197,7 @@ class Assistant:
         return {"configurable": {"thread_id": fil}, "callbacks": [suivi_tour, *rappels], "metadata": meta}
 
     def pending_validation(self, session_id) -> Optional[dict]:
+        """Le dossier en attente de la décision d'un conseiller pour cette session, ou None."""
         etat = self.graph.get_state({"configurable": {"thread_id": self._fils.get(session_id, session_id)}})
         return etat.interrupts[0].value if etat.interrupts else None
 
@@ -205,9 +211,11 @@ class Assistant:
         return messages + [HumanMessage(c) if role == "client" else AIMessage(c) for role, c in self.history.messages(cle)]
 
     def _summarize(self, transcription: str) -> str:
+        """Résume les anciens messages avec PROMPT_RESUME."""
         return str(self.llm.invoke([SystemMessage(PROMPT_RESUME), HumanMessage(transcription)]).content)
 
     def _remember(self, cle: str, texte_client: Optional[str], texte_assistant: str) -> None:
+        """Enregistre le tour, puis résume les anciens messages si la conversation devient trop longue."""
         if texte_client:
             self.history.add(cle, "client", texte_client)
         self.history.add(cle, "assistant", texte_assistant)
@@ -218,6 +226,7 @@ class Assistant:
         self.history.clear(utilisateur)
 
     def reply(self, session_id: str, client_id: str, texte: str, utilisateur: str = "") -> Reply:
+        """Un tour : garde-fous d'entrée, graphe, garde-fous de sortie. `utilisateur` : l'expéditeur, clé de la conversation."""
         suivi_tour = suivi.Tracker()
         cle = utilisateur or session_id                    # la conversation est celle de l'expéditeur : numéro WhatsApp
         self._cles[session_id] = cle
@@ -250,6 +259,7 @@ class Assistant:
         return self._close_turn(session_id, self._read(r), suivi_tour, self._cles.get(session_id, session_id))
 
     def _read(self, r) -> Reply:
+        """Le résultat du graphe en `Reply` : dossier en attente, ou dernière réponse du modèle."""
         if r.get("__interrupt__"):
             return Reply(ATTENTE_VALIDATION, r.get("categorie"), validation=r["__interrupt__"][0].value, transfert=True)
         texte = next((m.content for m in reversed(r["messages"]) if isinstance(m, AIMessage) and not m.tool_calls), "")
@@ -258,6 +268,7 @@ class Assistant:
 
     def _close_turn(self, session_id, rep: Reply, suivi_tour, cle: Optional[str] = None, texte_client: Optional[str] = None,
                   premier: bool = False) -> Reply:
+        """Fin de tour : filtre de sortie, mémoire, annonce au premier message, journal de suivi."""
         if self.guardrails_enabled:
             filtre = garde_fous.check_output(rep.texte)
             rep.bloque = rep.bloque or filtre != rep.texte

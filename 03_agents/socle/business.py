@@ -1,4 +1,5 @@
-"""Fonctions métier du module 3 : accès à la base et à la documentation, sans modèle. Les tools du TP1 les appellent."""
+"""Fonctions métier : lecture et écriture de la base, recherche dans la documentation. Du Python et du SQL, sans
+modèle, testables seules. Les tools de l'agent les appellent."""
 import json
 from datetime import datetime, timedelta
 
@@ -7,6 +8,7 @@ from recherche_docs import find_docs
 
 
 def fetch_loans(client_id):
+    """Prêts du client : produit, montant, statut, solde restant et suspension."""
     with connect() as con:
         return {"prets": [dict(r) for r in con.execute(
             "SELECT pret_id, produit, montant, frais_service, date_octroi, duree_jours, statut, solde_restant, suspension "
@@ -14,6 +16,7 @@ def fetch_loans(client_id):
 
 
 def fetch_schedule(client_id, pret_id=None):
+    """Échéancier des prêts en cours ou impayés du client (ou du seul `pret_id`)."""
     with connect() as con:
         prets = con.execute("SELECT * FROM prets WHERE client_id = ? AND statut IN ('en_cours', 'impaye') "
                             "AND (? IS NULL OR pret_id = ?)", (client_id, pret_id, pret_id)).fetchall()
@@ -28,7 +31,7 @@ def fetch_schedule(client_id, pret_id=None):
 
 
 def fetch_lm_transactions(client_id, date, montant=None):
-    """Remboursements Lagune Money du client, de la veille de `date` jusqu'à son surlendemain (exclu)."""
+    """Remboursements Lagune Money du client, de la veille de `date` (AAAA-MM-JJ) à son surlendemain exclu."""
     jour = datetime.fromisoformat(date[:10])
     debut, fin = (jour - timedelta(days=1)).date().isoformat(), (jour + timedelta(days=2)).date().isoformat()
     with connect() as con:
@@ -40,7 +43,7 @@ def fetch_lm_transactions(client_id, date, montant=None):
 
 
 def fetch_incidents(date_heure):
-    """Incidents de la plateforme qui couvrent une date et une heure, et ceux du même jour."""
+    """Incidents de la plateforme qui couvrent `date_heure` (AAAA-MM-JJTHH:MM), et ceux du même jour."""
     with connect() as con:
         couvrants = con.execute("SELECT * FROM incidents_plateforme WHERE debut <= ? AND fin >= ?", (date_heure, date_heure)).fetchall()
         meme_jour = con.execute("SELECT * FROM incidents_plateforme WHERE substr(debut, 1, 10) = ?", (date_heure[:10],)).fetchall()
@@ -49,13 +52,14 @@ def fetch_incidents(date_heure):
 
 
 def fetch_docs(requete, date_reference=None, k=3):
-    """Recherche dans l'index RAG du module 2, limitée aux documents en vigueur à date_reference."""
+    """Recherche dans la documentation (index du module 2), limitée aux documents en vigueur à `date_reference`."""
     date_reference = date_reference or AUJOURDHUI
     return {"date_reference": date_reference, "resultats": find_docs(requete, date_reference, k)}
 
 
 def insert_claim(client_id, parcours, resume, demande_client, elements_verifies, urgence,
                   pret_id=None, echeance_id=None, transaction_id=None, incident_id=None):
+    """Enregistre une réclamation avec son dossier pour un conseiller ; date limite de traitement : 72 heures."""
     dossier = {"schema_version": "1.0", "client_id": client_id, "parcours": parcours, "resume": resume,
                "demande_client": demande_client, "elements_verifies": elements_verifies, "pret_id": pret_id,
                "echeance_id": echeance_id, "transaction_id": transaction_id, "incident_id": incident_id,
@@ -70,6 +74,9 @@ def insert_claim(client_id, parcours, resume, demande_client, elements_verifies,
 
 
 def apply_regularisation(client_id, validateur, echeance_id, transaction_id, incident_id, justification):
+    """Régularise une échéance à partir d'un remboursement non rattaché. Sans validateur, ne modifie rien. Sinon,
+    revérifie les conditions de la procédure DOC-08 sans faire confiance au modèle, puis rattache la transaction,
+    annule les frais de retard, lève la suspension et inscrit la régularisation avec son validateur."""
     if not validateur:
         return {"statut": "en_attente_validation",
                 "message": "Action à incidence financière : validation par un conseiller obligatoire. Aucune modification effectuée."}

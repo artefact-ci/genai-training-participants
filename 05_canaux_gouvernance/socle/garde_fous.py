@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(next(p / "code_partage" for p in Path(__file__).resolve().parents if (p / "code_partage" / "observabilite.py").exists())))
-from observabilite import mask, mask_data  # noqa: E402,F401  (le masquage sert aussi aux traces Langfuse des modules 2 et 3)
+from observabilite import mask  # noqa: E402,F401  (masquage des données personnelles, commun avec les traces Langfuse)
 
 ANNONCE_IA = "Bonjour, je suis l'assistant virtuel de Lagune Banque. Vous pouvez demander un conseiller à tout moment."
 
@@ -58,4 +58,5 @@ def check_output(texte: str) -> str:
 
 
 def asks_for_advisor(texte: str) -> bool:
+    """True si le client demande à parler à un conseiller."""
     return bool(re.search(DEMANDE_CONSEILLER, texte, re.I))

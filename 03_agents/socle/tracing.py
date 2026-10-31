@@ -1,4 +1,4 @@
-"""Collecte locale d'une trace d'agent : chaque décision du modèle et chaque appel de tool, avec arguments, résultat, durée et tokens."""
+"""Trace locale d'un agent : chaque décision du modèle et chaque appel de tool, avec arguments, résultat, durée et tokens."""
 import time
 
 import pandas as pd
@@ -6,6 +6,8 @@ from langchain_core.callbacks import BaseCallbackHandler
 
 
 class Tracer(BaseCallbackHandler):
+    """Callback à passer dans `config={"callbacks": [tracer]}` : chaque étape s'ajoute à `steps`."""
+
     def __init__(self):
         self.steps = []
         self._starts = {}
@@ -44,6 +46,7 @@ class Tracer(BaseCallbackHandler):
         return [s["calls"] for s in self.steps if s["type"] == "model"]
 
     def table(self):
+        """Les étapes en tableau, une ligne par décision du modèle ou appel de tool."""
         rows = [{"étape": i + 1, "type": s["type"], "tool ou décision": s["name"] if s["type"] == "tool" else s["decision"],
                  "arguments": str(s["args"])[:80], "résultat": s["result"][:60], "secondes": s["seconds"], "tokens": s["tokens"]}
                 for i, s in enumerate(self.steps)]

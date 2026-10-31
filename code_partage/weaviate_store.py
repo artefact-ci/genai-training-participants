@@ -1,17 +1,9 @@
 """Stockage vectoriel du module 2 (réutilisé par les modules 3, 4 et 5) : Weaviate, ou une base en mémoire de repli.
 
-Adapté de l'adaptateur de souleymanecoulibaly-stack (branche tp-rag-lagune-bank). Même interface que les collections
-Chroma (`add(ids, embeddings, documents, metadatas)` et `query(query_embeddings, n_results)`), pour changer de base
-vectorielle sans toucher au reste des notebooks.
-
-Distance : `l2-squared` (celle de Chroma par défaut), pour que les distances et le seuil de refus calibré au TP2 restent
-comparables d'une base à l'autre. Avec la distance cosinus native de Weaviate, les valeurs seraient environ deux fois plus
-petites et le seuil serait à recalibrer.
-
-Trois façons de stocker les mêmes vecteurs :
-  1. Weaviate Cloud : WEAVIATE_URL (et WEAVIATE_API_KEY) ;
-  2. Weaviate local (Docker : `docker compose up -d` à la racine du dépôt) : http://localhost:8080 ;
-  3. repli en mémoire : si Weaviate est injoignable, ou si VECTEUR=memoire. Pas de persistance, mais le TP tourne partout.
+Adapté de l'adaptateur de souleymanecoulibaly-stack (branche tp-rag-lagune-bank).
+Une collection offre `add(ids, embeddings, documents, metadatas)` et `query(query_embeddings, n_results)`. La distance est
+`l2-squared` : plus elle est petite, plus le chunk est proche de la question.
+Weaviate Cloud si WEAVIATE_URL est renseignée, sinon Weaviate local (`docker compose up -d`), sinon la mémoire (ou VECTEUR=memoire).
 """
 import os
 
@@ -29,6 +21,8 @@ class ClientMemoire:
 
 
 class MemoireCollection:
+    """Collection en mémoire : comparaison avec tous les vecteurs, rien n'est conservé après le notebook."""
+
     def __init__(self, client, name):
         self.name, self._ids, self._vecteurs, self._textes, self._metas = name, [], [], [], []
         self.reutilisee = False
@@ -65,6 +59,8 @@ def connect():
 
 
 class WeaviateCollection:
+    """Collection Weaviate qui stocke nos propres embeddings. `reutilisee` : une collection déjà remplie a été reprise telle quelle."""
+
     def __init__(self, client, name, reutiliser=False):
         from weaviate.classes.config import Configure, DataType, Property, VectorDistances
         self.name, self.reutilisee = name, False
