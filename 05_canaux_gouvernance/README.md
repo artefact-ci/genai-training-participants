@@ -10,16 +10,15 @@ Canal (WhatsApp)  →  adaptateur  →  passerelle  →  cœur de l'agent (graph
 
 | Ordre | Dossier | Notion travaillée |
 |---|---|---|
-| 1 | `tp1_canal/` | Compléter et tester un adaptateur WhatsApp sans réseau ; en bonus, ajouter un second canal |
-| 2 | `tp2_validation/` | Mettre en pause une régularisation, présenter son dossier au conseiller, puis reprendre selon sa décision |
-| 3 | `tp3_cout/` | Calculer le coût mensuel de 1 000 conversations quotidiennes et estimer l'effet du cache de prompt |
+| 1 | `tp1_validation/` | Mettre en pause une régularisation, présenter son dossier au conseiller, puis reprendre selon sa décision |
+| 2 | `tp2_cout/` | Calculer le coût mensuel de 1 000 conversations quotidiennes et estimer l'effet du cache de prompt |
 
 ## Structure du service
 
 | Dossier | Contenu |
 |---|---|
 | `socle/` | `coeur.py` (agent, garde-fous, reprise), `passerelle.py` (code commun aux canaux), `garde_fous.py`, `historique.py` (conversations), `suivi.py` (tokens, coût, Langfuse), `outils.py` |
-| `service/` | `service.py` (FastAPI) et `canaux/` avec l'adaptateur WhatsApp (`whatsapp.py`, utilisé par le service) et `whatsapp_tp.py` (à compléter au TP1) |
+| `service/` | `service.py` (FastAPI) et `canaux/whatsapp.py`, l'adaptateur WhatsApp |
 
 ## Lancer le service
 
