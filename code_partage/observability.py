@@ -1,4 +1,4 @@
-"""Traces Langfuse Cloud (modules 2, 3, 4 et 5) et masquage des données personnelles avant tout envoi.
+"""Traces Langfuse Cloud et masquage des données personnelles avant tout envoi.
 
 Clés dans `.env` : LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY et LANGFUSE_HOST (la région du projet, voir le README).
 Vérification : `uv run python scripts/verifier_langfuse.py`. Sans clés, rien n'est envoyé et rien ne casse.

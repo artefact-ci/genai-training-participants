@@ -1,4 +1,4 @@
-"""Interface de chat Gradio commune aux démos et TP des modules 2, 3 et 4.
+"""Interface de chat Gradio commune aux notebooks.
 
 Vous n'écrivez pas l'interface : vous écrivez une fonction `answer(message, historique)` et la branchez avec `create`.
 La fonction peut renvoyer (ou produire avec `yield`) une liste de messages : des blocs repliables (chunks utilisés, tools appelés)

@@ -1,6 +1,6 @@
 """RAG avancé : réécriture de la question, variantes, HyDE, BM25, mesure de la recherche, sortie structurée et réponse sourcée.
 
-Versions de référence de fonctions construites dans les démos et TP du module 2, réutilisées par les notebooks suivants.
+Versions de référence de fonctions construites au module 2, réutilisées par les notebooks suivants.
 """
 import json
 import math
